@@ -1,0 +1,98 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# Claude AI files (exclude configuration and context)
+CLAUDE.md
+.claude/
+
+# Backend (Go)
+# Binaries
+seeyoulatte-server/bin/
+seeyoulatte-server/*.exe
+seeyoulatte-server/*.dll
+seeyoulatte-server/*.so
+seeyoulatte-server/*.dylib
+
+# Test binary, built with `go test -c`
+seeyoulatte-server/*.test
+
+# Output of the go coverage tool
+seeyoulatte-server/*.out
+
+# Go vendor directory
+seeyoulatte-server/vendor/
+
+# Air hot reload temp files
+seeyoulatte-server/tmp/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Frontend (Next.js)
+# Dependencies
+seeyoulatte-client/node_modules/
+seeyoulatte-client/.pnp
+seeyoulatte-client/.pnp.js
+
+# Testing
+seeyoulatte-client/coverage/
+
+# Next.js build output
+seeyoulatte-client/.next/
+seeyoulatte-client/out/
+
+# Production
+seeyoulatte-client/build/
+seeyoulatte-client/dist/
+
+# Debug
+seeyoulatte-client/npm-debug.log*
+seeyoulatte-client/yarn-debug.log*
+seeyoulatte-client/yarn-error.log*
+seeyoulatte-client/.pnpm-debug.log*
+
+# Vercel
+seeyoulatte-client/.vercel
+
+# TypeScript
+seeyoulatte-client/*.tsbuildinfo
+seeyoulatte-client/next-env.d.ts
+
+# Package lock files (optional - uncomment if you want to ignore)
+# seeyoulatte-client/package-lock.json
+# seeyoulatte-client/yarn.lock
+# seeyoulatte-client/pnpm-lock.yaml
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+postgres_data/
+redis_data/
+
+# System Design Documentation (KEEP - Important project documentation)
+# !PROJECT_DESIGN.md
+# !seeyoulatte-server/PROJECT_DESIGN.md
