@@ -106,3 +106,4 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
 }
+
