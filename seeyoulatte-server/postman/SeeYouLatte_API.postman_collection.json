@@ -1,0 +1,308 @@
+{
+	"info": {
+		"name": "SeeYouLatte API",
+		"description": "Coffee marketplace API endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"event": [
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Extract token from auth responses",
+					"if (pm.response.code === 200 || pm.response.code === 201) {",
+					"    const responseData = pm.response.json();",
+					"    if (responseData.token) {",
+					"        pm.environment.set('jwt_token', responseData.token);",
+					"        console.log('Token saved to environment');",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Sign Up",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/signup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "signup"]
+						}
+					}
+				},
+				{
+					"name": "Sign In",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Token extraction handled by collection-level script",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/signin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "signin"]
+						}
+					}
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Listings - Public",
+			"item": [
+				{
+					"name": "Get All Public Listings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/listings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings"]
+						}
+					}
+				},
+				{
+					"name": "Get Single Listing",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/listings/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{listing_id}}",
+									"description": "UUID of the listing"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Listings - Protected",
+			"item": [
+				{
+					"name": "Create Listing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Save listing ID for other requests",
+									"if (pm.response.code === 201) {",
+									"    const responseData = pm.response.json();",
+									"    if (responseData.id) {",
+									"        pm.environment.set('listing_id', responseData.id);",
+									"        console.log('Listing ID saved:', responseData.id);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Ethiopian Yirgacheffe - Light Roast\",\n    \"description\": \"Single origin, freshly roasted this week. Floral and citrus notes.\",\n    \"category\": \"product\",\n    \"price\": 25.99,\n    \"quantity\": 10,\n    \"pickup_instructions\": \"Ring buzzer 3B, 2nd floor. Available weekday evenings after 6pm.\",\n    \"expires_at\": \"2024-12-31T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/listings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings"]
+						}
+					}
+				},
+				{
+					"name": "Get My Listings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/listings/my",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings", "my"]
+						}
+					}
+				},
+				{
+					"name": "Update Listing",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 22.99,\n    \"quantity\": 5,\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/listings/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{listing_id}}",
+									"description": "UUID of the listing to update"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Listing",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/listings/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{listing_id}}",
+									"description": "UUID of the listing to delete"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Listings - Experience Examples",
+			"item": [
+				{
+					"name": "Create Experience Listing",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Espresso Tasting Session - La Marzocco Setup\",\n    \"description\": \"Come experience specialty espresso on my home La Marzocco machine. I'll pull 3 different single origins for comparison. 30-minute session.\",\n    \"category\": \"experience\",\n    \"price\": 15.00,\n    \"quantity\": 4,\n    \"pickup_instructions\": \"Downtown apartment, address provided after booking. Weekends 10am-2pm.\",\n    \"expires_at\": \"2024-12-15T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/listings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
