@@ -19,8 +19,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        serif: ['Crimson Text', 'Playfair Display', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
-        sans: ['Crimson Text', 'Playfair Display', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
+        sans: ['var(--font-sans)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        serif: ['var(--font-serif)', 'Crimson Text', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
         mono: ['Courier Prime', 'Courier New', 'Courier', 'monospace'],
       },
       colors: {

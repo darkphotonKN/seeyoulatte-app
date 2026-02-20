@@ -24,9 +24,9 @@ export default function ListingsPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between listings-center mb-6">
-        <h1 className="text-3xl font-bold">Listings</h1>
-        <Button onClick={() => setCreateOpen(true)}>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="heading-secondary">Coffee Listings</h1>
+        <Button onClick={() => setCreateOpen(true)} className="btn-text">
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Listing
         </Button>

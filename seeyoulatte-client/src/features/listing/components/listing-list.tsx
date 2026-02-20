@@ -65,8 +65,8 @@ export function ListingList({
         {listings.map((listing) => (
           <Card key={listing.id}>
             <CardHeader>
-              <CardTitle className="flex justify-between listings-center">
-                <span className="truncate">{listing.name}</span>
+              <CardTitle className="flex justify-between items-center">
+                <span className="truncate font-serif text-lg">{listing.name}</span>
                 <div className="flex gap-2">
                   <Button
                     size="icon"
@@ -86,10 +86,10 @@ export function ListingList({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body text-sm text-muted-foreground">
                 {listing.description || "No description"}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-body text-xs text-muted-foreground mt-2">
                 Created: {new Date(listing.createdAt).toLocaleDateString()}
               </p>
             </CardContent>
@@ -98,22 +98,24 @@ export function ListingList({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center listings-center gap-2 mt-6">
+        <div className="flex justify-center items-center gap-2 mt-6">
           <Button
             variant="outline"
             size="sm"
+            className="btn-text"
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
-          <span className="text-sm">
+          <span className="text-body text-sm">
             Page {page} of {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
+            className="btn-text"
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
           >

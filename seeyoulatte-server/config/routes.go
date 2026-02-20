@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/middleware"
+	"github.com/darkphotonKN/seeyoulatte-app/internal/order"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/user"
 )
 
@@ -39,6 +40,11 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 	listingService := listing.NewService(listingRepo, logger)
 	listingHandler := listing.NewHandler(listingService, logger)
 
+	// Order service
+	orderRepo := order.NewRepository(db)
+	orderService := order.NewService(orderRepo, logger)
+	orderHandler := order.NewHandler(orderService, logger)
+
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
@@ -68,6 +74,15 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 			listings.GET("/my", middleware.AuthRequired(), listingHandler.GetMyListings)
 			listings.PUT("/:id", middleware.AuthRequired(), listingHandler.UpdateListing)
 			listings.DELETE("/:id", middleware.AuthRequired(), listingHandler.DeleteListing)
+		}
+
+		// Order endpoints
+		orders := api.Group("/orders")
+		{
+			orders.POST("", orderHandler.CreateOrder)
+			orders.GET("", orderHandler.GetAllOrders)
+			orders.PUT("/:id", orderHandler.UpdateOrder)
+			orders.DELETE("/:id", orderHandler.DeleteOrder)
 		}
 	}
 

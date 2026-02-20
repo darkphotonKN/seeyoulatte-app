@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Crimson_Text } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
+  display: 'swap',
 });
 
-const playfair = Playfair_Display({
+const crimsonText = Crimson_Text({
+  weight: ['400', '600', '700'],
   subsets: ["latin"],
-  variable: "--font-playfair",
+  variable: "--font-serif",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -26,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${playfair.variable} font-sans`}>
+      <body className={`${inter.variable} ${crimsonText.variable} font-sans antialiased`}>
         <Providers>
           {children}
           <Toaster />

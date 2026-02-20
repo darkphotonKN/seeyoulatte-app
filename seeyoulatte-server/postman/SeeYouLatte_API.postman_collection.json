@@ -4,24 +4,7 @@
 		"description": "Coffee marketplace API endpoints",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
-	"event": [
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					"// Extract token from auth responses",
-					"if (pm.response.code === 200 || pm.response.code === 201) {",
-					"    const responseData = pm.response.json();",
-					"    if (responseData.token) {",
-					"        pm.environment.set('jwt_token', responseData.token);",
-					"        console.log('Token saved to environment');",
-					"    }",
-					"}"
-				]
-			}
-		}
-	],
+	"event": [],
 	"variable": [
 		{
 			"key": "base_url",
@@ -35,6 +18,28 @@
 			"item": [
 				{
 					"name": "Sign Up",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Extract token from response",
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const responseData = pm.response.json();",
+									"    if (responseData.token) {",
+									"        pm.environment.set('jwt_token', responseData.token);",
+									"        console.log('Token saved to environment:', responseData.token);",
+									"    }",
+									"    if (responseData.user && responseData.user.id) {",
+									"        pm.environment.set('user_id', responseData.user.id);",
+									"        console.log('User ID saved:', responseData.user.id);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [
@@ -63,8 +68,18 @@
 							"script": {
 								"type": "text/javascript",
 								"exec": [
-									"// Token extraction handled by collection-level script",
-									""
+									"// Extract token from response",
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const responseData = pm.response.json();",
+									"    if (responseData.token) {",
+									"        pm.environment.set('jwt_token', responseData.token);",
+									"        console.log('Token saved to environment:', responseData.token);",
+									"    }",
+									"    if (responseData.user && responseData.user.id) {",
+									"        pm.environment.set('user_id', responseData.user.id);",
+									"        console.log('User ID saved:', responseData.user.id);",
+									"    }",
+									"}"
 								]
 							}
 						}
@@ -162,6 +177,10 @@
 									"    if (responseData.id) {",
 									"        pm.environment.set('listing_id', responseData.id);",
 									"        console.log('Listing ID saved:', responseData.id);",
+									"    }",
+									"    if (responseData.seller_id) {",
+									"        pm.environment.set('seller_id', responseData.seller_id);",
+									"        console.log('Seller ID saved:', responseData.seller_id);",
 									"    }",
 									"}"
 								]
@@ -299,6 +318,111 @@
 							"raw": "{{base_url}}/api/listings",
 							"host": ["{{base_url}}"],
 							"path": ["api", "listings"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Orders",
+			"item": [
+				{
+					"name": "Create Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Save order ID for other requests",
+									"if (pm.response.code === 201) {",
+									"    const responseData = pm.response.json();",
+									"    if (responseData.id) {",
+									"        pm.environment.set('order_id', responseData.id);",
+									"        console.log('Order ID saved:', responseData.id);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"listing_id\": \"{{listing_id}}\",\n    \"buyer_id\": \"{{user_id}}\",\n    \"seller_id\": \"{{seller_id}}\",\n    \"quantity\": 2,\n    \"amount\": 51.98\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders"]
+						}
+					}
+				},
+				{
+					"name": "Get All Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders"]
+						}
+					}
+				},
+				{
+					"name": "Update Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"state\": \"paid\",\n    \"seller_respond_by\": \"2024-12-25T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{order_id}}",
+									"description": "UUID of the order to update"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Order",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{order_id}}",
+									"description": "UUID of the order to delete"
+								}
+							]
 						}
 					}
 				}
