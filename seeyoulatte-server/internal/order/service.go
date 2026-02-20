@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
+	"github.com/darkphotonKN/seeyoulatte-app/internal/user"
 	"github.com/google/uuid"
 )
 
@@ -15,12 +17,22 @@ type Repository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
-type service struct {
-	repo   Repository
-	logger *slog.Logger
+type ListingService interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*listing.Listing, error)
 }
 
-func NewService(repo Repository, logger *slog.Logger) *service {
+type UserService interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*user.User, error)
+}
+
+type service struct {
+	repo           Repository
+	listingService ListingService
+	userService    UserService
+	logger         *slog.Logger
+}
+
+func NewService(repo Repository, logger *slog.Logger, listingService ListingService, userService UserService) *service {
 	return &service{
 		repo:   repo,
 		logger: logger,
@@ -28,6 +40,18 @@ func NewService(repo Repository, logger *slog.Logger) *service {
 }
 
 func (s *service) Create(ctx context.Context, req *CreateOrderRequest) (*Order, error) {
+	// 1. validate listing exists, quantity sufficient and is not exired
+
+	// 2. validate seller is not frozen or trying to buy their own product
+
+	// 3. calculate total amount
+
+	// 4. decrement quantity
+
+	// 5. insert row, state update to pending_payment
+
+	// 6. insert ESCROW ledger
+
 	order := &Order{
 		ListingID: req.ListingID,
 		BuyerID:   req.BuyerID,

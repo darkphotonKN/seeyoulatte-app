@@ -4,13 +4,13 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/middleware"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/order"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/user"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 )
 
 func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
@@ -42,7 +42,7 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 
 	// Order service
 	orderRepo := order.NewRepository(db)
-	orderService := order.NewService(orderRepo, logger)
+	orderService := order.NewService(orderRepo, logger, listingService)
 	orderHandler := order.NewHandler(orderService, logger)
 
 	// Health check
@@ -66,8 +66,8 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 		listings := api.Group("/listings")
 		{
 			// Public endpoints (no auth required)
-			listings.GET("", listingHandler.GetAllListings)      // Get all public listings
-			listings.GET("/:id", listingHandler.GetListing)      // Get single listing
+			listings.GET("", listingHandler.GetAllListings) // Get all public listings
+			listings.GET("/:id", listingHandler.GetListing) // Get single listing
 
 			// Protected endpoints (auth required)
 			listings.POST("", middleware.AuthRequired(), listingHandler.CreateListing)
@@ -96,3 +96,4 @@ func corsMiddleware() gin.HandlerFunc {
 	config.AllowHeaders = []string{"Content-Type", "Authorization"}
 	return cors.New(config)
 }
+
