@@ -160,7 +160,7 @@ func (h *Handler) UpdateListing(c *gin.Context) {
 		return
 	}
 
-	listing, err := h.service.Update(context.Background(), id, userID, &req)
+	listing, err := h.service.Update(c.Request.Context(), id, userID, &req)
 	if err != nil {
 		if err.Error() == "listing not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Listing not found"})
@@ -202,7 +202,7 @@ func (h *Handler) DeleteListing(c *gin.Context) {
 		return
 	}
 
-	err = h.service.Delete(context.Background(), id, userID)
+	err = h.service.Delete(c.Request.Context(), id, userID)
 	if err != nil {
 		if err.Error() == "listing not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Listing not found"})

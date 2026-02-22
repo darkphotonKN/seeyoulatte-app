@@ -1,20 +1,20 @@
 export const API_ENDPOINTS = {
   // Auth endpoints
   AUTH: {
-    LOGIN: "/auth/login",
-    REGISTER: "/auth/register",
-    LOGOUT: "/auth/logout",
-    REFRESH: "/auth/refresh",
-    ME: "/auth/me",
+    LOGIN: "/api/auth/signin",
+    REGISTER: "/api/auth/signup",
+    LOGOUT: "/api/auth/logout",
+    REFRESH: "/api/auth/refresh",
+    ME: "/api/auth/me",
   },
 
   // Listing endpoints
   ITEM: {
-    LIST: "/listings",
-    CREATE: "/listings",
-    GET: (id: string | number) => `/listings/${id}`,
-    UPDATE: (id: string | number) => `/listings/${id}`,
-    DELETE: (id: string | number) => `/listings/${id}`,
+    LIST: "/api/listings",
+    CREATE: "/api/listings",
+    GET: (id: string | number) => `/api/listings/${id}`,
+    UPDATE: (id: string | number) => `/api/listings/${id}`,
+    DELETE: (id: string | number) => `/api/listings/${id}`,
   },
 
   // Upload endpoints

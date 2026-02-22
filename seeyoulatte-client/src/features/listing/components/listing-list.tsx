@@ -1,8 +1,8 @@
 import { Listing } from "../types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ListingCard } from "./listing-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Edit, Trash } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDeleteListing } from "../hooks/use-listing";
 import { useState } from "react";
 import { ListingEditDialog } from "./listing-edit-dialog";
@@ -33,17 +33,16 @@ export function ListingList({
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-6 w-3/4" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-4 w-full mb-2" />
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="space-y-3">
+            <Skeleton className="aspect-[4/3] w-full" />
+            <div className="space-y-2 px-1">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-2/3" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -51,54 +50,25 @@ export function ListingList({
 
   if (listings.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-10">
-          <p className="text-muted-foreground">No listings found</p>
-        </CardContent>
-      </Card>
+      <div className="text-center py-16">
+        <p className="text-muted-foreground text-lg">No listings found</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Be the first to share your coffee!
+        </p>
+      </div>
     );
   }
 
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {listings.map((listing) => (
-          <Card key={listing.id}>
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span className="truncate font-serif text-lg">{listing.name}</span>
-                <div className="flex gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setEditingId(listing.id)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(listing.id)}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-body text-sm text-muted-foreground">
-                {listing.description || "No description"}
-              </p>
-              <p className="text-body text-xs text-muted-foreground mt-2">
-                Created: {new Date(listing.createdAt).toLocaleDateString()}
-              </p>
-            </CardContent>
-          </Card>
+          <ListingCard key={listing.id} listing={listing} />
         ))}
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6">
+        <div className="flex justify-center items-center gap-2 mt-12">
           <Button
             variant="outline"
             size="sm"
@@ -109,7 +79,7 @@ export function ListingList({
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
-          <span className="text-body text-sm">
+          <span className="text-body text-sm px-4">
             Page {page} of {totalPages}
           </span>
           <Button

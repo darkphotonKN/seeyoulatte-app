@@ -42,7 +42,7 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 
 	// Order service
 	orderRepo := order.NewRepository(db)
-	orderService := order.NewService(orderRepo, logger, listingService)
+	orderService := order.NewService(orderRepo, db, logger, listingService, userService)
 	orderHandler := order.NewHandler(orderService, logger)
 
 	// Health check
@@ -76,8 +76,9 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 			listings.DELETE("/:id", middleware.AuthRequired(), listingHandler.DeleteListing)
 		}
 
-		// Order endpoints
+		// Order endpoints (all require authentication)
 		orders := api.Group("/orders")
+		orders.Use(middleware.AuthRequired())
 		{
 			orders.POST("", orderHandler.CreateOrder)
 			orders.GET("", orderHandler.GetAllOrders)

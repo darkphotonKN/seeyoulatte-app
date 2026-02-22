@@ -7,7 +7,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/20 via-background to-background" />
+        <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-accent/5 to-background" />
         <div className="relative container mx-auto px-4 py-24 lg:py-32">
           <div className="flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
             <h1 className="heading-primary lg:text-7xl text-foreground">
@@ -20,17 +20,20 @@ export default function HomePage() {
               or discover unique beans from passionate local roasters.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mt-8">
-              <Button size="lg" className="btn-text text-lg px-8 py-6" asChild>
+            <div className="flex flex-col items-center gap-3 mt-10">
+              <Button size="default" className="btn-text text-base px-10 py-5 rounded-full shadow-lg hover:shadow-xl transition-shadow" asChild>
                 <Link href="/signup">
-                  Create Account Now
+                  Start Your Journey
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="btn-text text-lg px-8 py-6" asChild>
-                <Link href="/signin">
-                  Login
-                </Link>
-              </Button>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Already have an account?</span>
+                <Button variant="link" className="btn-text text-sm p-0 h-auto font-normal underline-offset-4 hover:underline" asChild>
+                  <Link href="/signin">
+                    Sign in
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -75,8 +78,11 @@ export default function HomePage() {
       <div className="border-t border-border">
         <div className="container mx-auto px-4 py-16">
           <div className="flex flex-col items-center space-y-6 text-center">
-            <h2 className="heading-secondary">Ready to start your coffee journey?</h2>
-            <Button size="lg" className="btn-text group" asChild>
+            <h2 className="heading-secondary">Ready to explore?</h2>
+            <p className="text-body text-muted-foreground max-w-2xl">
+              Discover unique coffee experiences from your local community.
+            </p>
+            <Button size="default" className="btn-text group rounded-full px-8 py-4" asChild>
               <Link href="/listings">
                 Browse Listings
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

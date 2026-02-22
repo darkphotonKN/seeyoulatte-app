@@ -154,7 +154,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetByID(context.Background(), userID)
+	user, err := h.service.GetByID(c.Request.Context(), userID)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "User not found",

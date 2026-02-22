@@ -21,10 +21,7 @@ type Order struct {
 
 type CreateOrderRequest struct {
 	ListingID uuid.UUID `json:"listing_id" binding:"required"`
-	BuyerID   uuid.UUID `json:"buyer_id" binding:"required"`
-	SellerID  uuid.UUID `json:"seller_id" binding:"required"`
 	Quantity  int       `json:"quantity" binding:"required,min=1"`
-	Amount    float64   `json:"amount" binding:"required,min=0.01"`
 }
 
 type UpdateOrderRequest struct {

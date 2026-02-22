@@ -1,9 +1,18 @@
 export interface Listing {
   id: string;
-  name: string;
+  seller_id: string;
+  title: string;
+  name?: string; // For backward compatibility
   description?: string;
-  createdAt: string;
-  updatedAt: string;
+  category: 'product' | 'experience';
+  price: number;
+  quantity: number;
+  pickup_instructions?: string;
+  expires_at?: string;
+  is_active: boolean;
+  created_at: string;
+  createdAt?: string; // For backward compatibility
+  updatedAt?: string;
 }
 
 export interface CreateListingRequest {

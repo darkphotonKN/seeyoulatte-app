@@ -21,27 +21,27 @@ Items can optionally expire (fresh roasts, limited sessions), but listings are g
 
 ## Core Learning Objectives
 
-| Concept | What We're Learning | Where It Appears |
-|---|---|---|
-| Race conditions | Multiple buyers, limited quantity. Atomic queries + `FOR UPDATE` locks | Order creation |
-| Multi-table business logic | Can't buy if seller frozen, listing expired, insufficient quantity. Cross-table checks need row locks | Order creation |
-| State machine | Order flows through defined states with guards and actions. Centralized transition table, no scattered if/else | Order lifecycle |
-| Escrow pattern | Platform holds money until fulfillment confirmed + review period ends | Ledger entries tied to state transitions |
-| Immutable ledger | Append-only financial records. Never update, never delete. Corrections via reversal entries | `ledger_entries` table |
-| Timeout transitions | Background jobs auto-cancel unaccepted orders and auto-complete fulfilled orders when time windows expire | Background worker |
+| Concept                    | What We're Learning                                                                                            | Where It Appears                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Race conditions            | Multiple buyers, limited quantity. Atomic queries + `FOR UPDATE` locks                                         | Order creation                           |
+| Multi-table business logic | Can't buy if seller frozen, listing expired, insufficient quantity. Cross-table checks need row locks          | Order creation                           |
+| State machine              | Order flows through defined states with guards and actions. Centralized transition table, no scattered if/else | Order lifecycle                          |
+| Escrow pattern             | Platform holds money until fulfillment confirmed + review period ends                                          | Ledger entries tied to state transitions |
+| Immutable ledger           | Append-only financial records. Never update, never delete. Corrections via reversal entries                    | `ledger_entries` table                   |
+| Timeout transitions        | Background jobs auto-cancel unaccepted orders and auto-complete fulfilled orders when time windows expire      | Background worker                        |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Notes |
-|---|---|---|
-| Backend | Go | HTTP server, business logic, background jobs |
-| Database | PostgreSQL | Row-level locking, constraints, REVOKE for ledger immutability |
-| Frontend | TypeScript + Next.js | Focus is backend; frontend is minimal UI to trigger flows |
-| Payments | Mock | No real PSP. Just record ledger entries to simulate money movement |
-| Background jobs | Go ticker / cron goroutine | Polls for timed-out orders every minute |
-| Auth | JWT | Simple auth with user registration and login |
+| Layer           | Technology                 | Notes                                                              |
+| --------------- | -------------------------- | ------------------------------------------------------------------ |
+| Backend         | Go                         | HTTP server, business logic, background jobs                       |
+| Database        | PostgreSQL                 | Row-level locking, constraints, REVOKE for ledger immutability     |
+| Frontend        | TypeScript + Next.js       | Focus is backend; frontend is minimal UI to trigger flows          |
+| Payments        | Mock                       | No real PSP. Just record ledger entries to simulate money movement |
+| Background jobs | Go ticker / cron goroutine | Polls for timed-out orders every minute                            |
+| Auth            | JWT                        | Simple auth with user registration and login                       |
 
 ---
 
@@ -51,12 +51,12 @@ There are no hard-coded roles like "buyer" or "seller." Permissions are derived 
 
 ### Capability Rules
 
-| Action | Requirement |
-|---|---|
-| Browse listings | None (public, unauthenticated) |
-| Purchase a listing | Authenticated, not frozen |
-| Create a listing | Authenticated, not frozen, `seller_verified_at IS NOT NULL` |
-| Admin actions | `is_admin = true` |
+| Action             | Requirement                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| Browse listings    | None (public, unauthenticated)                              |
+| Purchase a listing | Authenticated, not frozen                                   |
+| Create a listing   | Authenticated, not frozen, `seller_verified_at IS NOT NULL` |
+| Admin actions      | `is_admin = true`                                           |
 
 ### Seller Onboarding
 
@@ -65,11 +65,13 @@ A user becomes eligible to sell by completing a seller onboarding step. For this
 The `seller_verified_at` field is a timestamp rather than a boolean so there's an audit trail of when onboarding completed. Null means not onboarded. Non-null means eligible to sell.
 
 Mock flow:
+
 1. User calls `POST /api/seller/onboard`
 2. System sets `seller_verified_at = NOW()`
 3. User can now create listings
 
 Production flow (stretch goal):
+
 1. User initiates Stripe Connect onboarding
 2. Stripe webhook confirms connected account is active
 3. System sets `seller_verified_at = NOW()` and stores `stripe_account_id`
@@ -122,6 +124,7 @@ CREATE TABLE listings (
 ```
 
 **Notes:**
+
 - `quantity` represents bags for products, slots/seats for experiences.
 - `expires_at` is optional. Persistent listings don't need it. Fresh roasts or one-time tasting sessions do.
 - `is_active` lets sellers temporarily hide listings without deleting them.
@@ -147,6 +150,7 @@ CREATE TABLE orders (
 ```
 
 **Notes:**
+
 - `seller_id` is denormalized from the listing to avoid joins when querying "my orders as a seller."
 - `seller_respond_by` is set when order transitions to PAID (`NOW() + 24 hours`).
 - `review_ends_at` is set when order transitions to FULFILLED (`NOW() + 48 hours`).
@@ -173,12 +177,12 @@ REVOKE UPDATE, DELETE ON ledger_entries FROM app_user;
 
 **Entry types:**
 
-| Entry Type | Meaning | When Created |
-|---|---|---|
-| ESCROW | Buyer's money enters platform hold | Order transitions to PAID |
-| PAYOUT | Platform releases money to seller | Order transitions to COMPLETED |
-| REFUND | Platform returns money to buyer | Order transitions to CANCELLED or REFUNDED |
-| REVERSAL | Corrects a previous erroneous entry | Manual correction (append negative to undo) |
+| Entry Type | Meaning                             | When Created                                |
+| ---------- | ----------------------------------- | ------------------------------------------- |
+| ESCROW     | Buyer's money enters platform hold  | Order transitions to PAID                   |
+| PAYOUT     | Platform releases money to seller   | Order transitions to COMPLETED              |
+| REFUND     | Platform returns money to buyer     | Order transitions to CANCELLED or REFUNDED  |
+| REVERSAL   | Corrects a previous erroneous entry | Manual correction (append negative to undo) |
 
 **Calculating escrow balance for an order:**
 
@@ -263,32 +267,32 @@ PENDING_PAYMENT
 
 ### All Possible States
 
-| State | Description |
-|---|---|
-| `pending_payment` | Order created, awaiting payment |
-| `paid` | Payment confirmed, awaiting seller response |
-| `accepted` | Seller accepted, awaiting buyer pickup/visit |
-| `fulfilled` | Seller confirmed buyer received the coffee. Review period active |
-| `completed` | Review period passed or dispute rejected. Seller paid out |
-| `cancelled` | Seller declined or response timed out. Buyer refunded |
-| `disputed` | Buyer raised issue during review period. Payout frozen |
-| `refunded` | Admin resolved dispute in buyer's favor. Buyer refunded |
+| State             | Description                                                      |
+| ----------------- | ---------------------------------------------------------------- |
+| `pending_payment` | Order created, awaiting payment                                  |
+| `paid`            | Payment confirmed, awaiting seller response                      |
+| `accepted`        | Seller accepted, awaiting buyer pickup/visit                     |
+| `fulfilled`       | Seller confirmed buyer received the coffee. Review period active |
+| `completed`       | Review period passed or dispute rejected. Seller paid out        |
+| `cancelled`       | Seller declined or response timed out. Buyer refunded            |
+| `disputed`        | Buyer raised issue during review period. Payout frozen           |
+| `refunded`        | Admin resolved dispute in buyer's favor. Buyer refunded          |
 
 ### Transition Table
 
 Single source of truth for all allowed state changes. Implement as a centralized transition table in Go.
 
-| # | From | To | Actor | Guard | Action |
-|---|---|---|---|---|---|
-| 1 | `pending_payment` | `paid` | System | Payment confirmed (mock) | Create ESCROW ledger entry. Set `seller_respond_by = NOW() + 24hr` |
-| 2 | `paid` | `accepted` | Seller | Seller not frozen. Within `seller_respond_by` window | — |
-| 3 | `paid` | `cancelled` | Seller | Within `seller_respond_by` window | Create REFUND ledger entry. Restore listing quantity |
-| 4 | `paid` | `cancelled` | System | `seller_respond_by` has passed | Create REFUND ledger entry. Restore listing quantity |
-| 5 | `accepted` | `fulfilled` | Seller | — | Set `review_ends_at = NOW() + 48hr` |
-| 6 | `fulfilled` | `disputed` | Buyer | `review_ends_at` has NOT passed | Freeze payout (no ledger entry yet) |
-| 7 | `fulfilled` | `completed` | System | `review_ends_at` has passed AND no open dispute | Create PAYOUT ledger entry |
-| 8 | `disputed` | `refunded` | Admin | — | Create REFUND ledger entry |
-| 9 | `disputed` | `completed` | Admin | Dispute rejected | Create PAYOUT ledger entry |
+| #   | From              | To          | Actor  | Guard                                                | Action                                                             |
+| --- | ----------------- | ----------- | ------ | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| 1   | `pending_payment` | `paid`      | System | Payment confirmed (mock)                             | Create ESCROW ledger entry. Set `seller_respond_by = NOW() + 24hr` |
+| 2   | `paid`            | `accepted`  | Seller | Seller not frozen. Within `seller_respond_by` window | —                                                                  |
+| 3   | `paid`            | `cancelled` | Seller | Within `seller_respond_by` window                    | Create REFUND ledger entry. Restore listing quantity               |
+| 4   | `paid`            | `cancelled` | System | `seller_respond_by` has passed                       | Create REFUND ledger entry. Restore listing quantity               |
+| 5   | `accepted`        | `fulfilled` | Seller | —                                                    | Set `review_ends_at = NOW() + 48hr`                                |
+| 6   | `fulfilled`       | `disputed`  | Buyer  | `review_ends_at` has NOT passed                      | Freeze payout (no ledger entry yet)                                |
+| 7   | `fulfilled`       | `completed` | System | `review_ends_at` has passed AND no open dispute      | Create PAYOUT ledger entry                                         |
+| 8   | `disputed`        | `refunded`  | Admin  | —                                                    | Create REFUND ledger entry                                         |
+| 9   | `disputed`        | `completed` | Admin  | Dispute rejected                                     | Create PAYOUT ledger entry                                         |
 
 ### Quantity Restoration on Cancellation
 
@@ -354,49 +358,49 @@ Both jobs use `FOR UPDATE SKIP LOCKED` and re-verify state inside each per-row t
 
 ### Public (No Auth)
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register new user. Body: `{ email, password, name }` |
-| POST | `/api/auth/login` | Login. Returns JWT. Body: `{ email, password }` |
-| GET | `/api/listings` | Browse active listings. Filters: `category`, `search`. Returns `is_active = true`, `quantity > 0`, not expired |
-| GET | `/api/listings/:id` | Listing detail with seller info (name, bio, location, average rating) |
+| Method | Path                 | Description                                                                                                    |
+| ------ | -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/auth/register` | Register new user. Body: `{ email, password, name }`                                                           |
+| POST   | `/api/auth/login`    | Login. Returns JWT. Body: `{ email, password }`                                                                |
+| GET    | `/api/listings`      | Browse active listings. Filters: `category`, `search`. Returns `is_active = true`, `quantity > 0`, not expired |
+| GET    | `/api/listings/:id`  | Listing detail with seller info (name, bio, location, average rating)                                          |
 
 ### Authenticated (Any User)
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/me` | Current user profile |
-| POST | `/api/seller/onboard` | Complete seller onboarding. Sets `seller_verified_at = NOW()` |
+| Method | Path                  | Description                                                   |
+| ------ | --------------------- | ------------------------------------------------------------- |
+| GET    | `/api/me`             | Current user profile                                          |
+| POST   | `/api/seller/onboard` | Complete seller onboarding. Sets `seller_verified_at = NOW()` |
 
 ### Buyer (Authenticated, Not Frozen)
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/orders` | Create order. Body: `{ listing_id, quantity }`. Race condition handling here |
-| POST | `/api/orders/:id/pay` | Mock payment. Transitions `pending_payment` → `paid` |
-| GET | `/api/orders?role=buyer` | My orders as buyer |
-| POST | `/api/orders/:id/dispute` | File dispute. Body: `{ reason }`. Only during review period |
-| POST | `/api/orders/:id/review` | Leave review. Body: `{ rating, comment }`. Only after `completed` |
+| Method | Path                      | Description                                                                  |
+| ------ | ------------------------- | ---------------------------------------------------------------------------- |
+| POST   | `/api/orders`             | Create order. Body: `{ listing_id, quantity }`. Race condition handling here |
+| POST   | `/api/orders/:id/pay`     | Mock payment. Transitions `pending_payment` → `paid`                         |
+| GET    | `/api/orders?role=buyer`  | My orders as buyer                                                           |
+| POST   | `/api/orders/:id/dispute` | File dispute. Body: `{ reason }`. Only during review period                  |
+| POST   | `/api/orders/:id/review`  | Leave review. Body: `{ rating, comment }`. Only after `completed`            |
 
 ### Seller (Authenticated, Not Frozen, `seller_verified_at IS NOT NULL`)
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/listings` | Create listing. Body: `{ title, description, category, price, quantity, pickup_instructions, expires_at? }` |
-| PATCH | `/api/listings/:id` | Update listing (title, description, price, quantity, is_active, pickup_instructions) |
-| GET | `/api/orders?role=seller` | My orders as seller |
-| POST | `/api/orders/:id/accept` | Accept order. Transitions `paid` → `accepted` |
-| POST | `/api/orders/:id/decline` | Decline order. Transitions `paid` → `cancelled` |
-| POST | `/api/orders/:id/fulfill` | Mark fulfilled. Transitions `accepted` → `fulfilled` |
+| Method | Path                      | Description                                                                                                 |
+| ------ | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/listings`           | Create listing. Body: `{ title, description, category, price, quantity, pickup_instructions, expires_at? }` |
+| PATCH  | `/api/listings/:id`       | Update listing (title, description, price, quantity, is_active, pickup_instructions)                        |
+| GET    | `/api/orders?role=seller` | My orders as seller                                                                                         |
+| POST   | `/api/orders/:id/accept`  | Accept order. Transitions `paid` → `accepted`                                                               |
+| POST   | `/api/orders/:id/decline` | Decline order. Transitions `paid` → `cancelled`                                                             |
+| POST   | `/api/orders/:id/fulfill` | Mark fulfilled. Transitions `accepted` → `fulfilled`                                                        |
 
 ### Admin (Authenticated, `is_admin = true`)
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/admin/disputes` | Open dispute queue |
-| POST | `/api/admin/disputes/:id/resolve` | Resolve dispute. Body: `{ resolution: "refund" \| "reject" }` |
-| POST | `/api/admin/users/:id/freeze` | Freeze a user |
-| POST | `/api/admin/users/:id/unfreeze` | Unfreeze a user |
+| Method | Path                              | Description                                                   |
+| ------ | --------------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/admin/disputes`             | Open dispute queue                                            |
+| POST   | `/api/admin/disputes/:id/resolve` | Resolve dispute. Body: `{ resolution: "refund" \| "reject" }` |
+| POST   | `/api/admin/users/:id/freeze`     | Freeze a user                                                 |
+| POST   | `/api/admin/users/:id/unfreeze`   | Unfreeze a user                                               |
 
 ---
 
@@ -433,6 +437,7 @@ const (
 Each phase builds on the previous. Tasks marked 🤖 are good candidates for Claude Code. Unmarked tasks are the core learning pieces to do yourself.
 
 ### Phase 1: Foundation
+
 - [ ] 🤖 Initialize Go module, install dependencies (pgx, chi, uuid, jwt)
 - [ ] 🤖 PostgreSQL Docker Compose
 - [ ] 🤖 Migration SQL file (full schema from this doc)
@@ -440,17 +445,20 @@ Each phase builds on the previous. Tasks marked 🤖 are good candidates for Cla
 - [ ] 🤖 Config loading (env vars)
 
 ### Phase 2: Auth & Users
+
 - [ ] 🤖 User model + registration/login handlers
 - [ ] 🤖 JWT middleware
 - [ ] 🤖 Seller onboarding endpoint
 - [ ] 🤖 Seed data (test users: one regular, one verified seller, one admin)
 
 ### Phase 3: Listings CRUD
+
 - [ ] 🤖 Listing model + CRUD handlers with seller_verified_at guard
 - [ ] 🤖 List with filters (category, active, not expired)
 - [ ] Test: verified seller can create listing, unverified user cannot
 
 ### Phase 4: Order Creation (Race Conditions) ← First thing you code yourself
+
 - [ ] Order model
 - [ ] `CreateOrder` with `FOR UPDATE` locking
 - [ ] Mock payment endpoint
@@ -458,6 +466,7 @@ Each phase builds on the previous. Tasks marked 🤖 are good candidates for Cla
 - [ ] Test: concurrent order creation with goroutines
 
 ### Phase 5: State Machine
+
 - [ ] Define transition table
 - [ ] Implement `TransitionOrder` engine
 - [ ] Wire up seller endpoints: accept, decline, fulfill
@@ -465,22 +474,26 @@ Each phase builds on the previous. Tasks marked 🤖 are good candidates for Cla
 - [ ] Test: full happy path
 
 ### Phase 6: Background Jobs
+
 - [ ] Auto-cancel worker (expired `seller_respond_by`)
 - [ ] Auto-complete worker (expired `review_ends_at`)
 - [ ] `SKIP LOCKED` + state re-verification pattern
 - [ ] Test: verify auto-cancellation and auto-completion
 
 ### Phase 7: Disputes & Admin
+
 - [ ] Dispute creation (buyer)
 - [ ] 🤖 Dispute resolution endpoints (admin)
 - [ ] Ledger entries on resolution
 - [ ] 🤖 Admin freeze/unfreeze user
 
 ### Phase 8: Reviews
+
 - [ ] 🤖 Review model + handler
 - [ ] 🤖 Average rating query
 
 ### Phase 9: Frontend
+
 - [ ] 🤖 All pages (browse, detail, orders, admin, onboarding)
 
 ---

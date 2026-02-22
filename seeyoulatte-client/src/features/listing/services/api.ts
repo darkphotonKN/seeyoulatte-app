@@ -13,7 +13,13 @@ export const listingService = {
     const { data } = await apiClient.get(API_ENDPOINTS.ITEM.LIST, {
       params: { page, pageSize },
     });
-    return data;
+    // Map backend response to expected frontend format
+    return {
+      data: data.listings || [],
+      total: data.count || 0,
+      page: page,
+      pageSize: pageSize,
+    };
   },
 
   // Get a single listing

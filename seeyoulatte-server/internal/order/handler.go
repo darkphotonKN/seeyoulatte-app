@@ -10,10 +10,10 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, req *CreateOrderRequest) (*Order, error)
+	Create(ctx context.Context, buyerID uuid.UUID, req *CreateOrderRequest) (*Order, error)
 	GetAll(ctx context.Context) ([]Order, error)
-	Update(ctx context.Context, id uuid.UUID, req *UpdateOrderRequest) (*Order, error)
-	Delete(ctx context.Context, id uuid.UUID) error
+	Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req *UpdateOrderRequest) (*Order, error)
+	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
 type Handler struct {
@@ -29,16 +29,41 @@ func NewHandler(service Service, logger *slog.Logger) *Handler {
 }
 
 func (h *Handler) CreateOrder(c *gin.Context) {
+	// Extract authenticated user ID from context
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	// Convert user_id to UUID
+	var buyerID uuid.UUID
+	switch v := userIDValue.(type) {
+	case string:
+		parsedID, err := uuid.Parse(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+			return
+		}
+		buyerID = parsedID
+	case uuid.UUID:
+		buyerID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	order, err := h.service.Create(c.Request.Context(), &req)
+	order, err := h.service.Create(c.Request.Context(), buyerID, &req)
 	if err != nil {
 		h.logger.Error("failed to create order",
-			slog.String("error", err.Error()))
+			slog.String("error", err.Error()),
+			slog.String("buyer_id", buyerID.String()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
 		return
 	}
@@ -62,6 +87,30 @@ func (h *Handler) GetAllOrders(c *gin.Context) {
 }
 
 func (h *Handler) UpdateOrder(c *gin.Context) {
+	// Extract authenticated user ID from context
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	// Convert user_id to UUID
+	var userID uuid.UUID
+	switch v := userIDValue.(type) {
+	case string:
+		parsedID, err := uuid.Parse(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+			return
+		}
+		userID = parsedID
+	case uuid.UUID:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -75,11 +124,12 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := h.service.Update(c.Request.Context(), id, &req)
+	order, err := h.service.Update(c.Request.Context(), id, userID, &req)
 	if err != nil {
 		h.logger.Error("failed to update order",
 			slog.String("error", err.Error()),
-			slog.String("order_id", id.String()))
+			slog.String("order_id", id.String()),
+			slog.String("user_id", userID.String()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order"})
 		return
 	}
@@ -88,6 +138,30 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 }
 
 func (h *Handler) DeleteOrder(c *gin.Context) {
+	// Extract authenticated user ID from context
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	// Convert user_id to UUID
+	var userID uuid.UUID
+	switch v := userIDValue.(type) {
+	case string:
+		parsedID, err := uuid.Parse(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+			return
+		}
+		userID = parsedID
+	case uuid.UUID:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -95,11 +169,12 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		return
 	}
 
-	err = h.service.Delete(c.Request.Context(), id)
+	err = h.service.Delete(c.Request.Context(), id, userID)
 	if err != nil {
 		h.logger.Error("failed to delete order",
 			slog.String("error", err.Error()),
-			slog.String("order_id", id.String()))
+			slog.String("order_id", id.String()),
+			slog.String("user_id", userID.String()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete order"})
 		return
 	}
