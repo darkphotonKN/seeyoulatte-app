@@ -20,7 +20,7 @@ type Repository interface {
 }
 
 type ListingService interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*listing.Listing, error)
+	GetByIDLock(ctx context.Context, id uuid.UUID) (*listing.Listing, error)
 }
 
 type UserService interface {
@@ -50,7 +50,7 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 
 	err := dbutils.ExecTx(ctx, s.db, func(tx *sqlx.Tx) error {
 		// 1. validate listing exists, quantity sufficient and is not expired
-		listing, err := s.listingService.GetByID(ctx, req.ListingID)
+		listing, err := s.listingService.GetByIDLock(ctx, req.ListingID)
 		if err != nil {
 			s.logger.Error("failed to get listing", "error", err, "listing_id", req.ListingID)
 			return fmt.Errorf("listing not found: %w", err)

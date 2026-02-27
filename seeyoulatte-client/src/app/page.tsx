@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Coffee, Users, ShoppingBag, ArrowRight } from "lucide-react";
+import { Header } from "@/components/header";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
+      <Header />
       {/* Hero Section */}
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-accent/5 to-background" />

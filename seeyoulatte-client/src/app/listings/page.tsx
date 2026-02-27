@@ -6,6 +6,7 @@ import { ListingList } from "@/features/listing/components/listing-list";
 import { ListingCreateDialog } from "@/features/listing/components/listing-create-dialog";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import { Header } from "@/components/header";
 
 export default function ListingsPage() {
   const [page, setPage] = useState(1);
@@ -24,6 +25,7 @@ export default function ListingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Header />
       {/* Hero Section */}
       <div className="border-b">
         <div className="container mx-auto px-4 py-12">

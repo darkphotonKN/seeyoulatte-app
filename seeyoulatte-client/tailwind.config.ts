@@ -24,6 +24,7 @@ const config: Config = {
         mono: ['Courier Prime', 'Courier New', 'Courier', 'monospace'],
       },
       colors: {
+        // System colors using CSS variables for theme switching
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -56,6 +57,31 @@ const config: Config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        // Coffee-inspired color palette
+        coffee: {
+          cream: "#FBF9F7",
+          linen: "#F5F2EE",
+          beige: "#EFEBE5",
+          espresso: "#2C1810",
+          "medium-roast": "#5D4037",
+          "light-roast": "#8D6E63",
+          caramel: "#D2691E",
+          golden: "#CD853F",
+          sienna: "#A0522D",
+          // Dark mode colors
+          "dark-espresso": "#1C1311",
+          "dark-roast": "#2A1F1A",
+          "medium-dark": "#382D26",
+          "coffee-cream": "#F5E6D3",
+          "light-caramel": "#E0C4A8",
+          "cafe-au-lait": "#B8956F",
+          sandy: "#F4A460",
+          // Bean roast spectrum
+          "light-bean": "#DEB887",
+          "medium-bean": "#CD853F",
+          "dark-bean": "#8B4513",
+          "french-roast": "#654321",
         },
       },
       borderRadius: {

@@ -70,6 +70,29 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*Listing, error
 	return &listing, nil
 }
 
+func (r *repository) GetByIDLock(ctx context.Context, id uuid.UUID) (*Listing, error) {
+	var listing Listing
+	query := `
+		SELECT
+			id, seller_id, title, description, category, price,
+			quantity, pickup_instructions, expires_at, is_active, created_at
+		FROM listings
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	err := r.db.GetContext(ctx, &listing, query, id)
+	if err != nil {
+		dbErr := errorutils.AnalyzeDBErr(err)
+		if dbErr == errorutils.ErrNotFound {
+			return nil, nil
+		}
+		return nil, dbErr
+	}
+
+	return &listing, nil
+}
+
 func (r *repository) GetAllPublic(ctx context.Context) ([]Listing, error) {
 	var listings []Listing
 	query := `
@@ -171,3 +194,4 @@ func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 
 	return nil
 }
+

@@ -4,50 +4,64 @@
 
 @layer base {
   :root {
-    /* Dark cozy coffee theme - default to dark */
-    --background: 0 0% 12%; /* #1f1f1f */
-    --foreground: 40 23% 76%; /* rgb(209, 207, 192) */
-    --card: 0 0% 16%; /* #2a2a2a */
-    --card-foreground: 40 23% 76%;
-    --popover: 0 0% 16%;
-    --popover-foreground: 40 23% 76%;
-    --primary: 30 25% 45%; /* Warm brown */
-    --primary-foreground: 40 23% 85%;
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 40 23% 76%;
-    --muted: 0 0% 25%;
-    --muted-foreground: 40 15% 60%;
-    --accent: 30 35% 35%; /* Coffee accent */
-    --accent-foreground: 40 23% 85%;
-    --destructive: 0 84.2% 50%;
-    --destructive-foreground: 40 23% 85%;
-    --border: 0 0% 25%;
-    --input: 0 0% 20%;
-    --ring: 40 23% 76%;
+    /* Light mode coffee theme - default */
+    --background: 28 40% 98%; /* #FBF9F7 - Warm cream */
+    --foreground: 20 50% 12%; /* #2C1810 - Dark espresso */
+    --card: 28 35% 96%; /* #F5F2EE - Light linen */
+    --card-foreground: 20 50% 12%;
+    --popover: 28 35% 96%;
+    --popover-foreground: 20 50% 12%;
+    --primary: 31 70% 48%; /* #D2691E - Caramel */
+    --primary-foreground: 28 40% 98%;
+    --secondary: 33 52% 53%; /* #CD853F - Golden coffee */
+    --secondary-foreground: 20 50% 12%;
+    --muted: 28 28% 91%; /* #E8E0D6 - Pale coffee cream */
+    --muted-foreground: 14 19% 48%; /* #8D6E63 - Light roast */
+    --accent: 19 53% 42%; /* #A0522D - Sienna */
+    --accent-foreground: 28 40% 98%;
+    --destructive: 13 84% 48%; /* #D84315 - Dark roasted cherry */
+    --destructive-foreground: 28 40% 98%;
+    --border: 28 25% 87%; /* #E8E0D6 - Light border */
+    --input: 28 28% 91%;
+    --ring: 31 70% 48%; /* Primary caramel */
     --radius: 0.5rem;
+
+    /* Additional coffee colors as custom properties */
+    --coffee-beige: 28 30% 92%; /* #EFEBE5 */
+    --coffee-medium-roast: 15 25% 35%; /* #5D4037 */
+    --success: 88 50% 53%; /* #8BC34A - Coffee leaf green */
+    --warning: 33 100% 50%; /* #FF8F00 - Amber honey */
+    --info: 15 25% 40%; /* #6D4C41 - Rich coffee brown */
   }
 
-  .light {
-    /* Light mode - keeping for option but default is dark */
-    --background: 40 23% 95%;
-    --foreground: 0 0% 12%;
-    --card: 40 23% 98%;
-    --card-foreground: 0 0% 12%;
-    --popover: 40 23% 98%;
-    --popover-foreground: 0 0% 12%;
-    --primary: 30 35% 35%;
-    --primary-foreground: 40 23% 95%;
-    --secondary: 40 20% 90%;
-    --secondary-foreground: 0 0% 12%;
-    --muted: 40 15% 85%;
-    --muted-foreground: 0 0% 35%;
-    --accent: 30 25% 45%;
-    --accent-foreground: 40 23% 95%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 40 23% 95%;
-    --border: 40 15% 85%;
-    --input: 40 20% 90%;
-    --ring: 30 35% 35%;
+  .dark {
+    /* Dark mode - woody coffee theme */
+    --background: 20 25% 8%; /* #1C1311 - Dark espresso */
+    --foreground: 28 50% 90%; /* #F5E6D3 - Coffee cream */
+    --card: 20 20% 13%; /* #2A1F1A - Dark roast */
+    --card-foreground: 28 50% 90%;
+    --popover: 20 20% 13%;
+    --popover-foreground: 28 50% 90%;
+    --primary: 31 70% 48%; /* #D2691E - Caramel (consistent) */
+    --primary-foreground: 20 25% 8%;
+    --secondary: 27 80% 63%; /* #F4A460 - Sandy coffee */
+    --secondary-foreground: 20 25% 8%;
+    --muted: 20 22% 20%; /* #3E2D22 - Dark coffee ground */
+    --muted-foreground: 28 35% 60%; /* #B8956F - Cafe au lait */
+    --accent: 33 52% 53%; /* #CD853F - Burnished gold */
+    --accent-foreground: 20 25% 8%;
+    --destructive: 15 89% 55%; /* #F4511E - Roasted cherry bright */
+    --destructive-foreground: 28 50% 90%;
+    --border: 20 22% 20%; /* #3E2D22 - Dark border */
+    --input: 20 20% 18%; /* #382D26 - Medium dark */
+    --ring: 31 70% 48%;
+
+    /* Additional dark mode coffee colors */
+    --coffee-medium-dark: 20 20% 18%; /* #382D26 */
+    --coffee-light-caramel: 28 42% 76%; /* #E0C4A8 */
+    --success: 88 45% 55%; /* #66BB6A - Coffee plant green */
+    --warning: 33 100% 65%; /* #FFB74D - Honey amber */
+    --info: 14 19% 48%; /* #8D6E63 - Milk coffee */
   }
 }
 

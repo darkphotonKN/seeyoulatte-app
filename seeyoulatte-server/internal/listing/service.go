@@ -12,6 +12,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, listing *Listing) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Listing, error)
+	GetByIDLock(ctx context.Context, id uuid.UUID) (*Listing, error)
 	GetAllPublic(ctx context.Context) ([]Listing, error)
 	GetBySellerID(ctx context.Context, sellerID uuid.UUID) ([]Listing, error)
 	Update(ctx context.Context, listing *Listing) error
@@ -57,6 +58,17 @@ func (s *service) Create(ctx context.Context, sellerID uuid.UUID, req *CreateLis
 
 func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*Listing, error) {
 	listing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("getting listing: %w", err)
+	}
+	if listing == nil {
+		return nil, errors.New("listing not found")
+	}
+	return listing, nil
+}
+
+func (s *service) GetByIDLock(ctx context.Context, id uuid.UUID) (*Listing, error) {
+	listing, err := s.repo.GetByIDLock(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting listing: %w", err)
 	}
@@ -164,4 +176,3 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, sellerID uuid.UUID) 
 
 	return nil
 }
-
