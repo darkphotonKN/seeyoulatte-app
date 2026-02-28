@@ -71,6 +71,30 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return &user, nil
 }
 
+func (r *repository) GetByIDLock(ctx context.Context, id uuid.UUID) (*User, error) {
+	var user User
+	query := `
+		SELECT
+			id, email, password_hash, name, bio, location_text,
+			is_frozen, google_id, avatar_url, is_verified,
+			preferred_pickup_instructions, created_at, updated_at, last_login_at
+		FROM users
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	err := r.db.GetContext(ctx, &user, query, id)
+	if err != nil {
+		dbErr := errorutils.AnalyzeDBErr(err)
+		if dbErr == errorutils.ErrNotFound {
+			return nil, nil
+		}
+		return nil, dbErr
+	}
+
+	return &user, nil
+}
+
 func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
 	query := `
@@ -173,3 +197,4 @@ func (r *repository) UpdateLastLogin(ctx context.Context, userID uuid.UUID) erro
 
 	return nil
 }
+

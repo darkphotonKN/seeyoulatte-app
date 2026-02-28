@@ -21,6 +21,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetByIDLock(ctx context.Context, id uuid.UUID) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByGoogleID(ctx context.Context, googleID string) (*User, error)
 	Update(ctx context.Context, user *User) error
@@ -215,6 +216,10 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
+func (s *service) GetByIDLock(ctx context.Context, id uuid.UUID) (*User, error) {
+	return s.repo.GetByIDLock(ctx, id)
+}
+
 func (s *service) GenerateJWT(user *User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID.String(),
@@ -267,4 +272,3 @@ func (s *service) verifyGoogleIDToken(idToken string) (*GoogleUserInfo, error) {
 		Picture:       tokenInfo.Picture,
 	}, nil
 }
-
