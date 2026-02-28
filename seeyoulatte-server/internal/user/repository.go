@@ -71,7 +71,7 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return &user, nil
 }
 
-func (r *repository) GetByIDLock(ctx context.Context, id uuid.UUID) (*User, error) {
+func (r *repository) GetByIDForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*User, error) {
 	var user User
 	query := `
 		SELECT
@@ -83,7 +83,7 @@ func (r *repository) GetByIDLock(ctx context.Context, id uuid.UUID) (*User, erro
 		FOR UPDATE
 	`
 
-	err := r.db.GetContext(ctx, &user, query, id)
+	err := tx.GetContext(ctx, &user, query, id)
 	if err != nil {
 		dbErr := errorutils.AnalyzeDBErr(err)
 		if dbErr == errorutils.ErrNotFound {
@@ -93,6 +93,28 @@ func (r *repository) GetByIDLock(ctx context.Context, id uuid.UUID) (*User, erro
 	}
 
 	return &user, nil
+}
+
+func (r *repository) GetByIDNotIsFrozen(ctx context.Context, id uuid.UUID) error {
+	var user User
+	query := `
+		SELECT
+			id, 
+			is_frozen
+		FROM users
+		WHERE id = $1 AND is_frozen != true
+	`
+
+	err := r.db.GetContext(ctx, &user, query, id)
+	if err != nil {
+		dbErr := errorutils.AnalyzeDBErr(err)
+		if dbErr == errorutils.ErrNotFound {
+			return nil
+		}
+		return dbErr
+	}
+
+	return nil
 }
 
 func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error) {
@@ -197,4 +219,3 @@ func (r *repository) UpdateLastLogin(ctx context.Context, userID uuid.UUID) erro
 
 	return nil
 }
-

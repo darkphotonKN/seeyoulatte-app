@@ -70,18 +70,20 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*Listing, error
 	return &listing, nil
 }
 
-func (r *repository) GetByIDLock(ctx context.Context, id uuid.UUID) (*Listing, error) {
-	var listing Listing
+func (r *repository) GetByIDWithSellerForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*ListingWithSeller, error) {
+	var listing ListingWithSeller
 	query := `
 		SELECT
-			id, seller_id, title, description, category, price,
-			quantity, pickup_instructions, expires_at, is_active, created_at
-		FROM listings
-		WHERE id = $1
-		FOR UPDATE
+			l.id as listing_id, seller_id, u.is_frozen as is_frozen, title, description, category, price,
+			quantity, pickup_instructions, expires_at, is_active, l.created_at as listing_created_at
+		FROM listings as l
+		JOIN users as u
+		ON u.id = l.seller_id
+		WHERE l.id = $1
+		FOR UPDATE OF l, u
 	`
 
-	err := r.db.GetContext(ctx, &listing, query, id)
+	err := tx.GetContext(ctx, &listing, query, id)
 	if err != nil {
 		dbErr := errorutils.AnalyzeDBErr(err)
 		if dbErr == errorutils.ErrNotFound {
@@ -175,6 +177,48 @@ func (r *repository) Update(ctx context.Context, listing *Listing) error {
 	return nil
 }
 
+func (r *repository) UpdateTx(ctx context.Context, tx *sqlx.Tx, listing *Listing) error {
+	query := `
+		UPDATE listings SET
+			title = $2,
+			description = $3,
+			price = $4,
+			quantity = $5,
+			pickup_instructions = $6,
+			is_active = $7,
+			expires_at = $8
+		WHERE id = $1
+	`
+
+	result, err := tx.ExecContext(
+		ctx,
+		query,
+		listing.ID,
+		listing.Title,
+		listing.Description,
+		listing.Price,
+		listing.Quantity,
+		listing.PickupInstructions,
+		listing.IsActive,
+		listing.ExpiresAt,
+	)
+
+	if err != nil {
+		return errorutils.AnalyzeDBErr(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return errorutils.ErrNotFound
+	}
+
+	return nil
+}
+
 func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM listings WHERE id = $1`
 
@@ -194,4 +238,3 @@ func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 
 	return nil
 }
-

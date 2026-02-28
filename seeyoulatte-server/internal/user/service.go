@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -21,7 +22,8 @@ import (
 type Repository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
-	GetByIDLock(ctx context.Context, id uuid.UUID) (*User, error)
+	GetByIDForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*User, error)
+	GetByIDNotIsFrozen(ctx context.Context, id uuid.UUID) error
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByGoogleID(ctx context.Context, googleID string) (*User, error)
 	Update(ctx context.Context, user *User) error
@@ -216,8 +218,12 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *service) GetByIDLock(ctx context.Context, id uuid.UUID) (*User, error) {
-	return s.repo.GetByIDLock(ctx, id)
+func (s *service) GetByIDForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*User, error) {
+	return s.repo.GetByIDForUpdateTx(ctx, tx, id)
+}
+
+func (s *service) VerifyUserNotFrozen(ctx context.Context, id uuid.UUID) error {
+	return s.repo.GetByIDNotIsFrozen(ctx, id)
 }
 
 func (s *service) GenerateJWT(user *User) (string, error) {

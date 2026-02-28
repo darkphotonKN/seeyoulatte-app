@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
-	"github.com/darkphotonKN/seeyoulatte-app/internal/user"
 	dbutils "github.com/darkphotonKN/seeyoulatte-app/internal/utils/db"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/utils/errorutils"
 	"github.com/google/uuid"
@@ -21,12 +20,12 @@ type Repository interface {
 }
 
 type ListingService interface {
-	GetByIDLock(ctx context.Context, id uuid.UUID) (*listing.Listing, error)
-	Update(ctx context.Context, id uuid.UUID, sellerID uuid.UUID, req *listing.UpdateListingRequest) (*listing.Listing, error)
+	GetByIDWithSellerForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*listing.ListingWithSeller, error)
+	UpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, sellerID uuid.UUID, req *listing.UpdateListingRequest) (*listing.Listing, error)
 }
 
 type UserService interface {
-	GetByIDLock(ctx context.Context, id uuid.UUID) (*user.User, error)
+	VerifyUserNotFrozen(ctx context.Context, id uuid.UUID) error
 }
 
 type service struct {
@@ -50,9 +49,18 @@ func NewService(repo Repository, db *sqlx.DB, logger *slog.Logger, listingServic
 func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrderRequest) (*Order, error) {
 	var order *Order
 
-	err := dbutils.ExecTx(ctx, s.db, func(tx *sqlx.Tx) error {
-		// 1. validate l exists, quantity sufficient and is not expired
-		l, err := s.listingService.GetByIDLock(ctx, req.ListingID)
+	// 1. buyer already validated through JWT token, but check that they are not frozen here
+	err := s.userService.VerifyUserNotFrozen(ctx, userID)
+	if err != nil {
+		s.logger.Error("Attempting to sell to user that is frozen.", "error", err, "user_id", userID)
+		return nil, errorutils.ErrUserIsFrozen
+	}
+
+	err = dbutils.ExecTx(ctx, s.db, func(tx *sqlx.Tx) error {
+
+		// 2. validate l exists, quantity sufficient and is not expired and if user is frozen
+		// locks both table rows to prevent race condition collision
+		l, err := s.listingService.GetByIDWithSellerForUpdateTx(ctx, tx, req.ListingID)
 		if err != nil {
 			s.logger.Error("failed to get listing", "error", err, "listing_id", req.ListingID)
 			return fmt.Errorf("listing not found: %w", err)
@@ -63,33 +71,33 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 			return fmt.Errorf("insufficient quantity available")
 		}
 
-		// 2. validate buyer is not the seller
+		if l.UserIsFrozen {
+			s.logger.Error("Attempting to sell to a seller that is frozen.", "seller_id", l.SellerID)
+			return errorutils.ErrUserIsFrozen
+		}
+
+		// 3. validate buyer is not the seller
 		if l.SellerID == userID {
 			s.logger.Error("buyer cannot purchase their own listing", "user_id", userID, "SellerID", l.SellerID)
 			return fmt.Errorf("cannot purchase your own listing")
 		}
 
-		// 3. check user is not frozen with lock
-		user, err := s.userService.GetByIDLock(ctx, userID)
-		if err != nil {
-			s.logger.Error("User could not be retrived", "user_id", userID)
-			return err
-		}
-
-		if user.IsFrozen {
-			s.logger.Error("Frozen user attmped to place order on listing.", "user_id", userID)
-			return errorutils.ErrUserIsFrozen
-		}
-
 		// --- checks succeeded, start processing ---
-		updatedQuantity := l.Quantity - 1
+		updatedQuantity := l.Quantity - req.Quantity
 
 		// 4. decrement quantity of listing
-		s.listingService.Update(ctx, userID, l.SellerID, &listing.UpdateListingRequest{
+		_, err = s.listingService.UpdateTx(ctx, tx, l.ID, l.SellerID, &listing.UpdateListingRequest{
 			Quantity: &updatedQuantity,
 		})
 
-		// 4. calculate total amount
+		if err != nil {
+			s.logger.Error("Could not decrement the listing.",
+				"listing_id", l.ID,
+			)
+			return err
+		}
+
+		// 5. calculate total amount
 		amount := l.Price * float64(req.Quantity)
 
 		// 4. create the order
@@ -105,9 +113,6 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 		if err := s.repo.Create(ctx, order); err != nil {
 			return fmt.Errorf("creating order: %w", err)
 		}
-
-		// TODO: 5. decrement listing quantity
-		s.listingService.Update(ctx, l.ID, l.SellerID)
 
 		// TODO: 6. insert ESCROW ledger entry
 
