@@ -108,8 +108,9 @@ func (r *repository) GetByIDNotIsFrozen(ctx context.Context, id uuid.UUID) error
 	err := r.db.GetContext(ctx, &user, query, id)
 	if err != nil {
 		dbErr := errorutils.AnalyzeDBErr(err)
+		// no error, resource just wasn't found. user frozen or no ids matched
 		if dbErr == errorutils.ErrNotFound {
-			return nil
+			return errorutils.ErrUserIsFrozen
 		}
 		return dbErr
 	}

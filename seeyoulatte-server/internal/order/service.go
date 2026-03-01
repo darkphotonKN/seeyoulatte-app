@@ -52,13 +52,12 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 	// 1. buyer already validated through JWT token, but check that they are not frozen here
 	err := s.userService.VerifyUserNotFrozen(ctx, userID)
 	if err != nil {
-		s.logger.Error("Attempting to sell to user that is frozen.", "error", err, "user_id", userID)
-		return nil, errorutils.ErrUserIsFrozen
+		return nil, err
 	}
 
 	err = dbutils.ExecTx(ctx, s.db, func(tx *sqlx.Tx) error {
 
-		// 2. validate l exists, quantity sufficient and is not expired and if user is frozen
+		// 2. validate the listing exists, quantity sufficient and is not expired and if SELLER is frozen
 		// locks both table rows to prevent race condition collision
 		l, err := s.listingService.GetByIDWithSellerForUpdateTx(ctx, tx, req.ListingID)
 		if err != nil {
