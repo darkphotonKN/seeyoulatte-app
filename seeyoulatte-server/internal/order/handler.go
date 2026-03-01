@@ -2,9 +2,11 @@ package order
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
+	"github.com/darkphotonKN/seeyoulatte-app/internal/utils/errorutils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -61,6 +63,22 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	order, err := h.service.Create(c.Request.Context(), buyerID, &req)
 	if err != nil {
+
+		if errors.Is(err, errorutils.ErrBuyerIsFrozen) {
+			h.logger.Error("Buyer is frozen but attempted purchase",
+				slog.String("error", err.Error()),
+				slog.String("buyer_id", buyerID.String()))
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Attempted to buy when user, the buyer, is frozen."})
+			return
+		}
+
+		if errors.Is(err, errorutils.ErrSellerIsFrozen) {
+			h.logger.Error("Seller is frozen but attempted purchase",
+				slog.String("error", err.Error()))
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Attempted to buy from a frozen seller"})
+			return
+		}
+
 		h.logger.Error("failed to create order",
 			slog.String("error", err.Error()),
 			slog.String("buyer_id", buyerID.String()))
@@ -181,4 +199,3 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
 }
-

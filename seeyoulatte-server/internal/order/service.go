@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -52,6 +53,9 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 	// 1. buyer already validated through JWT token, but check that they are not frozen here
 	err := s.userService.VerifyUserNotFrozen(ctx, userID)
 	if err != nil {
+		if errors.Is(err, errorutils.ErrUserIsFrozen) {
+			return nil, errorutils.ErrBuyerIsFrozen
+		}
 		return nil, err
 	}
 
@@ -71,8 +75,7 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 		}
 
 		if l.UserIsFrozen {
-			s.logger.Error("Attempting to sell to a seller that is frozen.", "seller_id", l.SellerID)
-			return errorutils.ErrUserIsFrozen
+			return errorutils.ErrSellerIsFrozen
 		}
 
 		// 3. validate buyer is not the seller

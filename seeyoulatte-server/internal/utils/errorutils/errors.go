@@ -15,6 +15,8 @@ var (
 	ErrUnauthorized        = errors.New("Incorrect credentials entered during when attempting to authenticate.")
 
 	// user
-	ErrUserIsFrozen = errors.New("User account is frozen.")
+	ErrUserIsFrozen   = errors.New("User account is frozen.")
+	ErrBuyerIsFrozen  = errors.New("Buyer's account is frozen.")
+	ErrSellerIsFrozen = errors.New("Seller's account is frozen.")
 )
 
