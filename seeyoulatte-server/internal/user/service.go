@@ -31,10 +31,16 @@ type Repository interface {
 }
 
 type service struct {
-	repo         Repository
-	logger       *slog.Logger
-	jwtSecret    []byte
-	googleConfig *oauth2.Config
+	repo             Repository
+	logger           *slog.Logger
+	jwtSecret        []byte
+	googleConfig     *oauth2.Config
+	paymentProcessor PaymentProcessor
+}
+
+// PaymentProcessor interface for Stripe operations
+type PaymentProcessor interface {
+	CreateCustomer(ctx context.Context, userId uuid.UUID, email string) (string, error)
 }
 
 func NewService(repo Repository, logger *slog.Logger) *service {
@@ -60,6 +66,11 @@ func NewService(repo Repository, logger *slog.Logger) *service {
 		jwtSecret:    []byte(jwtSecret),
 		googleConfig: googleConfig,
 	}
+}
+
+// SetPaymentProcessor sets the payment processor for the service
+func (s *service) SetPaymentProcessor(processor PaymentProcessor) {
+	s.paymentProcessor = processor
 }
 
 func (s *service) SignUp(ctx context.Context, req *SignUpRequest) (*AuthResponse, error) {
@@ -90,6 +101,25 @@ func (s *service) SignUp(ctx context.Context, req *SignUpRequest) (*AuthResponse
 	// Create user
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("creating user: %w", err)
+	}
+
+	// Create Stripe customer if processor is configured
+	if s.paymentProcessor != nil {
+		customerID, err := s.paymentProcessor.CreateCustomer(ctx, user.ID, user.Email)
+		if err != nil {
+			// Log error but don't fail signup
+			s.logger.Error("failed to create Stripe customer",
+				slog.String("user_id", user.ID.String()),
+				slog.String("error", err.Error()))
+		} else {
+			// Update user with Stripe customer ID
+			user.StripeCustomerID = &customerID
+			if updateErr := s.repo.Update(ctx, user); updateErr != nil {
+				s.logger.Error("failed to update user with Stripe customer ID",
+					slog.String("user_id", user.ID.String()),
+					slog.String("error", updateErr.Error()))
+			}
+		}
 	}
 
 	// Generate JWT
@@ -192,6 +222,25 @@ func (s *service) GoogleAuth(ctx context.Context, idToken string) (*AuthResponse
 		if err := s.repo.Create(ctx, user); err != nil {
 			return nil, fmt.Errorf("creating user from Google: %w", err)
 		}
+
+		// Create Stripe customer for new Google user
+		if s.paymentProcessor != nil {
+			customerID, err := s.paymentProcessor.CreateCustomer(ctx, user.ID, user.Email)
+			if err != nil {
+				// Log error but don't fail signup
+				s.logger.Error("failed to create Stripe customer for Google user",
+					slog.String("user_id", user.ID.String()),
+					slog.String("error", err.Error()))
+			} else {
+				// Update user with Stripe customer ID
+				user.StripeCustomerID = &customerID
+				if updateErr := s.repo.Update(ctx, user); updateErr != nil {
+					s.logger.Error("failed to update Google user with Stripe customer ID",
+						slog.String("user_id", user.ID.String()),
+						slog.String("error", updateErr.Error()))
+				}
+			}
+		}
 	}
 
 	// Check if account is frozen
@@ -224,6 +273,33 @@ func (s *service) GetByIDForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.U
 
 func (s *service) VerifyUserNotFrozen(ctx context.Context, id uuid.UUID) error {
 	return s.repo.GetByIDNotIsFrozen(ctx, id)
+}
+
+// UpdateStripeCustomerID updates the user's Stripe customer ID
+func (s *service) UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error {
+	user, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		s.logger.Error("failed to get user",
+			slog.String("error", err.Error()),
+			slog.String("user_id", userID.String()))
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	user.StripeCustomerID = &stripeCustomerID
+
+	if err := s.repo.Update(ctx, user); err != nil {
+		s.logger.Error("failed to update user with Stripe customer ID",
+			slog.String("error", err.Error()),
+			slog.String("user_id", userID.String()),
+			slog.String("stripe_customer_id", stripeCustomerID))
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	s.logger.Info("updated user with Stripe customer ID",
+		slog.String("user_id", userID.String()),
+		slog.String("stripe_customer_id", stripeCustomerID))
+
+	return nil
 }
 
 func (s *service) GenerateJWT(user *User) (string, error) {

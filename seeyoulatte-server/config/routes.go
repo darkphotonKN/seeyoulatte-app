@@ -7,6 +7,8 @@ import (
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/middleware"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/order"
+	"github.com/darkphotonKN/seeyoulatte-app/internal/payment"
+	paymentprocessor "github.com/darkphotonKN/seeyoulatte-app/internal/payment_processor"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/user"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -44,6 +46,12 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 	orderRepo := order.NewRepository(db)
 	orderService := order.NewService(orderRepo, db, logger, listingService, userService)
 	orderHandler := order.NewHandler(orderService, logger)
+
+	// Payment service
+	stripeProcessor := paymentprocessor.NewStripeProcessor()
+	// TODO: Pass orderService when order service implements required methods
+	paymentService := payment.NewService(logger, stripeProcessor, orderService, userService, db)
+	paymentHandler := payment.NewHandler(paymentService, logger)
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -85,6 +93,17 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 			orders.PUT("/:id", orderHandler.UpdateOrder)
 			orders.DELETE("/:id", orderHandler.DeleteOrder)
 		}
+
+		// Payment endpoints
+		payments := api.Group("/payments")
+		{
+			// Authenticated endpoints
+			payments.POST("/intent", middleware.AuthRequired(), paymentHandler.CreatePaymentIntent)
+			payments.POST("/customer", middleware.AuthRequired(), paymentHandler.CreateStripeCustomer)
+		}
+
+		// Stripe webhook (no auth required, uses signature verification)
+		api.POST("/stripe/webhook", paymentHandler.HandleStripeWebhook)
 	}
 
 	return router
@@ -97,4 +116,3 @@ func corsMiddleware() gin.HandlerFunc {
 	config.AllowHeaders = []string{"Content-Type", "Authorization"}
 	return cors.New(config)
 }
-

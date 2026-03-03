@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	constantsstate "github.com/darkphotonKN/seeyoulatte-app/internal/constants/state"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	dbutils "github.com/darkphotonKN/seeyoulatte-app/internal/utils/db"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/utils/errorutils"
@@ -15,6 +16,8 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, order *Order) error
+	CreateTx(ctx context.Context, tx *sqlx.Tx, order *Order) error
+	GetByID(ctx context.Context, id uuid.UUID) (*Order, error)
 	GetAll(ctx context.Context) ([]Order, error)
 	Update(ctx context.Context, order *Order) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -60,7 +63,6 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 	}
 
 	err = dbutils.ExecTx(ctx, s.db, func(tx *sqlx.Tx) error {
-
 		// 2. validate the listing exists, quantity sufficient and is not expired and if SELLER is frozen
 		// locks both table rows to prevent race condition collision
 		l, err := s.listingService.GetByIDWithSellerForUpdateTx(ctx, tx, req.ListingID)
@@ -102,21 +104,19 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 		// 5. calculate total amount
 		amount := l.Price * float64(req.Quantity)
 
-		// 4. create the order
+		// 6. create the order
 		order = &Order{
 			ListingID: req.ListingID,
 			BuyerID:   userID,
 			SellerID:  l.SellerID,
 			Quantity:  req.Quantity,
 			Amount:    amount,
-			State:     "pending_payment",
+			State:     string(constantsstate.StatePendingPayment),
 		}
 
-		if err := s.repo.Create(ctx, order); err != nil {
+		if err := s.repo.CreateTx(ctx, tx, order); err != nil {
 			return fmt.Errorf("creating order: %w", err)
 		}
-
-		// TODO: 6. insert ESCROW ledger entry
 
 		s.logger.Info("order created",
 			slog.String("order_id", order.ID.String()),
@@ -129,6 +129,18 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 	if err != nil {
 		s.logger.Error("transaction failed, rolled back", "error", err, "buyer_id", userID, "listing_id", req.ListingID)
 		return nil, err
+	}
+
+	return order, nil
+}
+
+func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
+	order, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		s.logger.Error("failed to get order by ID",
+			slog.String("error", err.Error()),
+			slog.String("order_id", id.String()))
+		return nil, fmt.Errorf("getting order by ID: %w", err)
 	}
 
 	return order, nil

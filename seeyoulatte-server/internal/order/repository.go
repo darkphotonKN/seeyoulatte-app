@@ -47,6 +47,58 @@ func (r *repository) Create(ctx context.Context, order *Order) error {
 	return nil
 }
 
+func (r *repository) CreateTx(ctx context.Context, tx *sqlx.Tx, order *Order) error {
+	query := `
+		INSERT INTO orders (
+			listing_id, buyer_id, seller_id, quantity, amount,
+			state, seller_respond_by, review_ends_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8
+		) RETURNING id, created_at
+	`
+
+	err := tx.QueryRowContext(
+		ctx,
+		query,
+		order.ListingID,
+		order.BuyerID,
+		order.SellerID,
+		order.Quantity,
+		order.Amount,
+		order.State,
+		order.SellerRespondBy,
+		order.ReviewEndsAt,
+	).Scan(&order.ID, &order.CreatedAt)
+
+	if err != nil {
+		return errorutils.AnalyzeDBErr(err)
+	}
+
+	return nil
+}
+
+func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
+	var order Order
+	query := `
+		SELECT
+			id, listing_id, buyer_id, seller_id, quantity, amount,
+			state, seller_respond_by, review_ends_at, created_at
+		FROM orders
+		WHERE id = $1
+	`
+
+	err := r.db.GetContext(ctx, &order, query, id)
+	if err != nil {
+		dbErr := errorutils.AnalyzeDBErr(err)
+		if dbErr == errorutils.ErrNotFound {
+			return nil, fmt.Errorf("order not found: %w", dbErr)
+		}
+		return nil, fmt.Errorf("failed to get order: %w", dbErr)
+	}
+
+	return &order, nil
+}
+
 func (r *repository) GetAll(ctx context.Context) ([]Order, error) {
 	var orders []Order
 	query := `

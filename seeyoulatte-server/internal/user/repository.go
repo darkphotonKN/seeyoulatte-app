@@ -22,9 +22,9 @@ func (r *repository) Create(ctx context.Context, user *User) error {
 	query := `
 		INSERT INTO users (
 			email, password_hash, name, bio, location_text,
-			google_id, avatar_url, is_verified
+			google_id, avatar_url, is_verified, stripe_customer_id
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8
+			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		) RETURNING id, created_at, updated_at
 	`
 
@@ -39,6 +39,7 @@ func (r *repository) Create(ctx context.Context, user *User) error {
 		user.GoogleID,
 		user.AvatarURL,
 		user.IsVerified,
+		user.StripeCustomerID,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
@@ -54,7 +55,7 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 		SELECT
 			id, email, password_hash, name, bio, location_text,
 			is_frozen, google_id, avatar_url, is_verified,
-			preferred_pickup_instructions, created_at, updated_at, last_login_at
+			preferred_pickup_instructions, stripe_customer_id, created_at, updated_at, last_login_at
 		FROM users
 		WHERE id = $1
 	`
@@ -77,7 +78,7 @@ func (r *repository) GetByIDForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uui
 		SELECT
 			id, email, password_hash, name, bio, location_text,
 			is_frozen, google_id, avatar_url, is_verified,
-			preferred_pickup_instructions, created_at, updated_at, last_login_at
+			preferred_pickup_instructions, stripe_customer_id, created_at, updated_at, last_login_at
 		FROM users
 		WHERE id = $1
 		FOR UPDATE
@@ -124,7 +125,7 @@ func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error
 		SELECT
 			id, email, password_hash, name, bio, location_text,
 			is_frozen, google_id, avatar_url, is_verified,
-			preferred_pickup_instructions, created_at, updated_at, last_login_at
+			preferred_pickup_instructions, stripe_customer_id, created_at, updated_at, last_login_at
 		FROM users
 		WHERE email = $1
 	`
@@ -147,7 +148,7 @@ func (r *repository) GetByGoogleID(ctx context.Context, googleID string) (*User,
 		SELECT
 			id, email, password_hash, name, bio, location_text,
 			is_frozen, google_id, avatar_url, is_verified,
-			preferred_pickup_instructions, created_at, updated_at, last_login_at
+			preferred_pickup_instructions, stripe_customer_id, created_at, updated_at, last_login_at
 		FROM users
 		WHERE google_id = $1
 	`
@@ -175,8 +176,9 @@ func (r *repository) Update(ctx context.Context, user *User) error {
 			avatar_url = $6,
 			is_verified = $7,
 			preferred_pickup_instructions = $8,
+			stripe_customer_id = $9,
 			updated_at = NOW()
-		WHERE id = $9
+		WHERE id = $10
 	`
 
 	result, err := r.db.ExecContext(
@@ -190,6 +192,7 @@ func (r *repository) Update(ctx context.Context, user *User) error {
 		user.AvatarURL,
 		user.IsVerified,
 		user.PreferredPickupInstructions,
+		user.StripeCustomerID,
 		user.ID,
 	)
 

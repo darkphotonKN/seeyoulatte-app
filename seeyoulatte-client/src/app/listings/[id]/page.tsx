@@ -307,8 +307,23 @@ export default function ListingDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-              <Button size="lg" className="flex-1 btn-text">
-                Order Now
+              <Button
+                size="lg"
+                className="flex-1 btn-text"
+                onClick={() => {
+                  // Navigate to checkout with listing details
+                  const checkoutParams = new URLSearchParams({
+                    listing_id: listing.id,
+                    title: displayName,
+                    quantity: '1', // Default to 1 for now
+                    price: price.toString(),
+                    seller: 'Coffee Seller', // You might want to get actual seller name
+                  });
+                  router.push(`/checkout?${checkoutParams.toString()}`);
+                }}
+                disabled={listing.quantity === 0}
+              >
+                {listing.quantity === 0 ? 'Out of Stock' : 'Buy Now'}
               </Button>
               <Button size="lg" variant="outline" className="btn-text">
                 Message Seller

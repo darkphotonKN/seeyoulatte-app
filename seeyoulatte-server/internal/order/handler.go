@@ -65,21 +65,21 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	if err != nil {
 
 		if errors.Is(err, errorutils.ErrBuyerIsFrozen) {
-			h.logger.Error("Buyer is frozen but attempted purchase",
+			h.logger.Warn("Buyer is frozen but attempted purchase",
 				slog.String("error", err.Error()),
 				slog.String("buyer_id", buyerID.String()))
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Attempted to buy when user, the buyer, is frozen."})
+			c.JSON(http.StatusForbidden, gin.H{"error": "Attempted to buy when user, the buyer, is frozen."})
 			return
 		}
 
 		if errors.Is(err, errorutils.ErrSellerIsFrozen) {
-			h.logger.Error("Seller is frozen but attempted purchase",
+			h.logger.Warn("Seller is frozen but attempted purchase",
 				slog.String("error", err.Error()))
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "Attempted to buy from a frozen seller"})
 			return
 		}
 
-		h.logger.Error("failed to create order",
+		h.logger.Warn("failed to create order",
 			slog.String("error", err.Error()),
 			slog.String("buyer_id", buyerID.String()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})

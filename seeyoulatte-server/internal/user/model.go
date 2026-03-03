@@ -17,6 +17,7 @@ type User struct {
 	AvatarURL                 *string    `db:"avatar_url" json:"avatar_url,omitempty"`
 	IsVerified                bool       `db:"is_verified" json:"is_verified"`
 	PreferredPickupInstructions *string  `db:"preferred_pickup_instructions" json:"preferred_pickup_instructions,omitempty"`
+	StripeCustomerID          *string    `db:"stripe_customer_id" json:"stripe_customer_id,omitempty"`
 	CreatedAt                 time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt                 time.Time  `db:"updated_at" json:"updated_at"`
 	LastLoginAt               *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
