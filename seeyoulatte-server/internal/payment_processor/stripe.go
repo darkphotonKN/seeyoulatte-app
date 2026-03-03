@@ -2,6 +2,7 @@ package paymentprocessor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -19,7 +20,7 @@ func NewStripeProcessor() *StripeProcessor {
 }
 
 // CreateCustomer creates a new Stripe customer for a user
-func (s *StripeProcessor) CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*CreateCustomerResponse, error) {
+func (s *StripeProcessor) CreateCustomer(ctx context.Context, req *CreateCustomerRequest) (*CreateCustomerResponse, error) {
 	params := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 		Metadata: map[string]string{
@@ -71,55 +72,57 @@ func (s *StripeProcessor) CreatePaymentIntent(ctx context.Context, amount int64,
 	}, nil
 }
 
-// // ProcessWebhookEvent processes and validates webhook events from Stripe
-// func (s *StripeProcessor) ProcessWebhookEvent(ctx context.Context, event *stripe.Event) (customerId string, error error) {
-// 	isEventSupported := s.IsWebhookEventSupported(ctx, event)
-//
-// 	if !isEventSupported {
-// 		return "", fmt.Errorf("the event type that was resulted from the action was not allowed")
-// 	}
-//
-// 	customerId, err := s.ExtractCustomerIdFromWebhook(event)
-// 	if err != nil {
-// 		return "", err
-// 	}
-//
-// 	return customerId, nil
-// }
-//
-// // IsWebhookEventSupported checks if the webhook event is one we handle
-// func (s *StripeProcessor) IsWebhookEventSupported(ctx context.Context, event *stripe.Event) bool {
-// 	// Store allowed / expected webhook events
-// 	expectedEvents := map[stripe.EventType]bool{
-// 		stripe.EventTypePaymentIntentSucceeded:     true,
-// 		stripe.EventTypePaymentIntentPaymentFailed: true,
-// 		stripe.EventTypePaymentIntentCanceled:      true,
-// 	}
-//
-// 	if !expectedEvents[event.Type] {
-// 		return false
-// 	}
-//
-// 	return true
-// }
-//
-// // ExtractCustomerIdFromWebhook extracts the Stripe customer ID from a webhook event
-// func (s *StripeProcessor) ExtractCustomerIdFromWebhook(event interface{}) (string, error) {
-// 	// Type assert to Stripe event
-// 	stripeEvent, ok := event.(*stripe.Event)
-// 	if !ok {
-// 		return "", fmt.Errorf("invalid event type: expected *stripe.Event")
-// 	}
-//
-// 	var eventData map[string]interface{}
-// 	err := json.Unmarshal(stripeEvent.Data.Raw, &eventData)
-// 	if err != nil {
-// 		return "", fmt.Errorf("unmarshaling event data: %w", err)
-// 	}
-//
-// 	if customer, ok := eventData["customer"].(string); ok && customer != "" {
-// 		return customer, nil
-// 	}
-//
-// 	return "", fmt.Errorf("no customer ID found in stripe event type: %s", stripeEvent.Type)
-// }
+// ProcessWebhookEvent processes and validates webhook events from Stripe
+func (s *StripeProcessor) ProcessWebhookEvent(ctx context.Context, event *WebhookEvent) (customerId string, error error) {
+	isEventSupported := s.isWebhookEventSupported(ctx, event)
+
+	if !isEventSupported {
+		return "", fmt.Errorf("the event type that was resulted from the action was not allowed")
+	}
+
+	customerId, err := s.extractCustomerIdFromWebhook(event)
+	if err != nil {
+		return "", err
+	}
+
+	return customerId, nil
+}
+
+// IsWebhookEventSupported checks if the webhook event is one we handle
+func (s *StripeProcessor) isWebhookEventSupported(ctx context.Context, event *WebhookEvent) bool {
+	// Store allowed / expected webhook events
+	expectedEvents := map[stripe.EventType]bool{
+		stripe.EventTypePaymentIntentSucceeded:     true,
+		stripe.EventTypePaymentIntentPaymentFailed: true,
+		stripe.EventTypePaymentIntentCanceled:      true,
+	}
+
+	// adapting to stripe's own type
+	stripeEventType := stripe.EventType(event.EventType)
+	if !expectedEvents[stripeEventType] {
+		return false
+	}
+
+	return true
+}
+
+// ExtractCustomerIdFromWebhook extracts the Stripe customer ID from a webhook event
+func (s *StripeProcessor) extractCustomerIdFromWebhook(event interface{}) (string, error) {
+	// Type assert to Stripe event
+	stripeEvent, ok := event.(*stripe.Event)
+	if !ok {
+		return "", fmt.Errorf("invalid event type: expected *stripe.Event")
+	}
+
+	var eventData map[string]interface{}
+	err := json.Unmarshal(stripeEvent.Data.Raw, &eventData)
+	if err != nil {
+		return "", fmt.Errorf("unmarshaling event data: %w", err)
+	}
+
+	if customer, ok := eventData["customer"].(string); ok && customer != "" {
+		return customer, nil
+	}
+
+	return "", fmt.Errorf("no customer ID found in stripe event type: %s", stripeEvent.Type)
+}

@@ -29,6 +29,14 @@ type CreatePaymentIntentRequest struct {
 // core layer for payment processors, allowing adapters to build custom connections to
 // various specific processors e.g. like stripe
 type PaymentProcessor interface {
-	CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*CreateCustomerResponse, error)
+	CreateCustomer(ctx context.Context, req *CreateCustomerRequest) (*CreateCustomerResponse, error)
 	CreatePaymentIntent(ctx context.Context, amount int64, customerId string, metadata map[string]string) (*CreatePaymentIntentResponse, error)
+	ProcessWebhookEvent(ctx context.Context, webhookEvent *WebhookEvent) (customerId string, error error)
+}
+
+// represents a webhook event, with its type and raw payload
+// as a general all purpose type that would fit multiple processors
+type WebhookEvent struct {
+	EventType string
+	RawBody   []byte
 }

@@ -26,8 +26,9 @@ type service struct {
 
 // PaymentProcessor interface for Stripe operations
 type PaymentProcessor interface {
-	CreateCustomer(ctx context.Context, req paymentprocessor.CreateCustomerRequest) (*paymentprocessor.CreateCustomerResponse, error)
+	CreateCustomer(ctx context.Context, req *paymentprocessor.CreateCustomerRequest) (*paymentprocessor.CreateCustomerResponse, error)
 	CreatePaymentIntent(ctx context.Context, amount int64, customerID string, metadata map[string]string) (*paymentprocessor.CreatePaymentIntentResponse, error)
+	ProcessWebhookEvent(ctx context.Context, webhookEvent *paymentprocessor.WebhookEvent) (customerId string, error error)
 }
 
 // OrderService interface - what we need from order service
