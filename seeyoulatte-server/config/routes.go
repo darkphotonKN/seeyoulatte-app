@@ -49,7 +49,6 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 
 	// Payment service
 	stripeProcessor := paymentprocessor.NewStripeProcessor()
-	// TODO: Pass orderService when order service implements required methods
 	paymentService := payment.NewService(logger, stripeProcessor, orderService, userService, db)
 	paymentHandler := payment.NewHandler(paymentService, logger)
 

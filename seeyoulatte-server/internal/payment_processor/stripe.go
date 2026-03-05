@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/stripe/stripe-go/v82"
@@ -107,16 +108,23 @@ func (s *StripeProcessor) isWebhookEventSupported(ctx context.Context, event *We
 }
 
 // ExtractCustomerIdFromWebhook extracts the Stripe customer ID from a webhook event
-func (s *StripeProcessor) extractCustomerIdFromWebhook(event interface{}) (string, error) {
-	// Type assert to Stripe event
-	stripeEvent, ok := event.(*stripe.Event)
-	if !ok {
+func (s *StripeProcessor) extractCustomerIdFromWebhook(event *WebhookEvent) (string, error) {
+
+	// unmarshal to expected stripe.Event type
+	var stripeEvent stripe.Event
+	err := json.Unmarshal(event.RawBody, &stripeEvent)
+
+	if err != nil {
+		slog.Error("Error when attempting to unmarshal raw body in webhook event",
+			"error", err)
 		return "", fmt.Errorf("invalid event type: expected *stripe.Event")
 	}
 
 	var eventData map[string]interface{}
-	err := json.Unmarshal(stripeEvent.Data.Raw, &eventData)
+	err = json.Unmarshal(stripeEvent.Data.Raw, &eventData)
 	if err != nil {
+		slog.Error("Error when attempting to unmarshal stripeEvent.Data.Raw in webhook event",
+			"error", err)
 		return "", fmt.Errorf("unmarshaling event data: %w", err)
 	}
 

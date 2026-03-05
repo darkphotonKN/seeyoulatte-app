@@ -68,3 +68,8 @@ type CreatePaymentIntentResponse struct {
 	Status          string `json:"status"`
 }
 
+type CreateCustomerRequest struct {
+	UserId   uuid.UUID
+	Email    string
+	Metadata map[string]string
+}

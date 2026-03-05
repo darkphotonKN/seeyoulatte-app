@@ -38,13 +38,13 @@ type OrderService interface {
 	// TransitionState(ctx context.Context, orderID uuid.UUID, event string, actor string) error
 }
 
-// UserService interface - what we need from user service
+// UserService interface. what we need from user service
 type UserService interface {
 	GetByID(ctx context.Context, userID uuid.UUID) (*user.User, error)
 	UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error
 }
 
-func NewService(logger *slog.Logger, paymentProcessor PaymentProcessor, userService UserService, orderService OrderService, db *sqlx.DB) *service {
+func NewService(logger *slog.Logger, paymentProcessor PaymentProcessor, orderService OrderService, userService UserService, db *sqlx.DB) *service {
 	return &service{
 		logger:           logger,
 		paymentProcessor: paymentProcessor,
@@ -98,10 +98,11 @@ func (s *service) CreatePaymentIntent(ctx context.Context, userID uuid.UUID, ord
 			slog.String("user_id", userID.String()),
 			slog.String("email", user.Email))
 
-		customerReq := paymentprocessor.CreateCustomerRequest{
+		customerReq := &paymentprocessor.CreateCustomerRequest{
 			UserId: userID,
 			Email:  user.Email,
 		}
+
 		customerResp, err := s.paymentProcessor.CreateCustomer(ctx, customerReq)
 		if err != nil {
 			s.logger.Error("failed to create Stripe customer",
