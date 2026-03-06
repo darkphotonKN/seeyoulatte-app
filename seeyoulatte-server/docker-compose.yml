@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -16,9 +16,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: seeyoulatte_redis
-    command: redis-server --requirepass password
+    command: redis-server --requirepass password --port 6395
     ports:
-      - "6387:6379"
+      - "6395:6395"
     volumes:
       - redis_data:/data
 

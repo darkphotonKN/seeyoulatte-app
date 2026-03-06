@@ -74,7 +74,7 @@ func (s *service) CreatePaymentIntent(ctx context.Context, userID uuid.UUID, ord
 		return nil, fmt.Errorf("order does not belong to this user")
 	}
 
-	// // Verify order is in pending_payment state
+	// Verify order is in pending_payment state
 	if order.State != "pending_payment" {
 		s.logger.Warn("attempting to create payment for order not in pending_payment state",
 			slog.String("order_id", orderID.String()),
