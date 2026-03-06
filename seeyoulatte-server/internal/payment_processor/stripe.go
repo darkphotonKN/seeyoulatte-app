@@ -134,3 +134,64 @@ func (s *StripeProcessor) extractCustomerIdFromWebhook(event *WebhookEvent) (str
 
 	return "", fmt.Errorf("no customer ID found in stripe event type: %s", stripeEvent.Type)
 }
+
+// Retrieves current state from stripe with teh customer's current information like
+// list of payments as well as current payment details
+
+func (s *StripeProcessor) FetchCurrentState(ctx context.Context, customerId string) (*CurrentState, error) {
+
+	// -- customer --
+
+	customer, err := customer.Get(customerId, nil)
+
+	if err != nil {
+		slog.Error("Failed to get customer from stripe",
+			"error", err)
+		return nil, fmt.Errorf("failed to get customer from stripe: %w", err)
+	}
+
+	// -- payments --
+
+	stripePayments := []*stripe.PaymentIntent{}
+
+	paymentParams := &stripe.PaymentIntentListParams{
+		Customer: stripe.String(customerId),
+	}
+
+	// include payment method details
+	paymentParams.AddExpand("data.payment_method")
+
+	paymentIter := paymentintent.List(paymentParams)
+
+	for paymentIter.Next() {
+		pi := paymentIter.PaymentIntent()
+		slog.Debug("Current iteration of payment intent",
+			"payment_intent", pi)
+
+		stripePayments = append(stripePayments, pi)
+	}
+
+	// convert to conform to abstracted type
+	payments := make([]*PaymentState, len(stripePayments))
+
+	for idx, payment := range stripePayments {
+		slog.Debug("Current iteration of payment intent",
+			"loop_index", idx,
+			"payment", payment,
+		)
+
+		payments[idx] = &PaymentState{
+			IntentID: payment.ID,
+			OrderID:  payment.Metadata["order_id"],
+			Status:   string(payment.Status),
+			Amount:   payment.Amount,
+			Currency: string(payment.Currency),
+		}
+	}
+
+	return &CustomerState{
+		CustomerID: customer.ID,
+		Email:      customer.Email,
+		Payments:   payments,
+	}, nil
+}

@@ -120,6 +120,10 @@ func (s *service) SignUp(ctx context.Context, req *SignUpRequest) (*AuthResponse
 					slog.String("error", updateErr.Error()))
 			}
 		}
+		slog.Debug("New stripe customer created",
+			slog.String("customerID", customerID),
+			slog.String("user_id", user.ID.String()),
+		)
 	}
 
 	// Generate JWT
