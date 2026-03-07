@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	// TODO: Uncomment when order service integration is ready
+	"github.com/darkphotonKN/seeyoulatte-app/internal/interfaces"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/order"
 	paymentprocessor "github.com/darkphotonKN/seeyoulatte-app/internal/payment_processor"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/user"
@@ -22,6 +23,7 @@ type service struct {
 	orderService OrderService
 	userService  UserService
 	db           *sqlx.DB
+	cacheClient  interfaces.Cache
 }
 
 // PaymentProcessor interface for Stripe operations
@@ -42,16 +44,18 @@ type OrderService interface {
 // UserService interface. what we need from user service
 type UserService interface {
 	GetByID(ctx context.Context, userID uuid.UUID) (*user.User, error)
+	GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*user.User, error)
 	UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error
 }
 
-func NewService(logger *slog.Logger, paymentProcessor PaymentProcessor, orderService OrderService, userService UserService, db *sqlx.DB) *service {
+func NewService(logger *slog.Logger, paymentProcessor PaymentProcessor, orderService OrderService, userService UserService, db *sqlx.DB, cacheClient interfaces.Cache) *service {
 	return &service{
 		logger:           logger,
 		paymentProcessor: paymentProcessor,
 		orderService:     orderService,
 		userService:      userService,
 		db:               db,
+		cacheClient:      cacheClient,
 	}
 }
 
@@ -367,7 +371,7 @@ Value: "cus_stripe123"        // Customer ID mapping
 
 * Database storage will store the same things but into the respective tables.
 */
-func (s *service) SyncPapymentProcessorDataToStorage(ctx context.Context, customerId string) error {
+func (s *service) SyncPaymentProcessorDataToStorage(ctx context.Context, customerId string) error {
 	// get payments and customer data synced from payment processor's
 	// sync fetch request
 	currentState, err := s.paymentProcessor.FetchCurrentState(ctx, customerId)
@@ -376,290 +380,11 @@ func (s *service) SyncPapymentProcessorDataToStorage(ctx context.Context, custom
 		s.logger.Error("Couldn't fetch for current state with payment processor helper FetchCurrentState",
 			"error", err,
 		)
+		return err
 	}
 
 	slog.Debug("current state retrieved from payment processor",
 		"currentState", currentState)
-
-	stripeUpdateCusWithCusIdKey := s.cacheClient.GetCustomerDataFromCustomerIdKey(currentState.CustomerID)
-
-	// --- DB Storage ---
-	// we do this first and roll back before even updating cache in case of error
-
-	tx, err := s.repo.BeginTx(ctx)
-	if err != nil {
-		fmt.Printf("\nError when attempting to start transaction: %+v\n\n", err)
-		return fmt.Errorf("error when attempting to start transaction: %+v", err)
-	}
-
-	// NOTE: safe to run even if commit was successful - in that case it will be a no-op
-	defer tx.Rollback()
-
-	// update application database for the respective tables
-
-	// -- user
-
-	// get userId from cache / db depending on availability
-	userId, err := s.GetCachedUserIdByCustomerId(ctx, customerId)
-
-	if err != nil {
-		fmt.Printf("\nUnexpected error when trying to get userId from cache: %s\n\n", err)
-		return err
-	}
-
-	// if not availble, use direct db query
-	if err == redislib.Nil {
-		user, err := s.userService.GetByStripeCustomerID(ctx, customerId)
-
-		if err != nil {
-			fmt.Printf("unexpected error when trying to query for userId: %s\n", err)
-			return err
-		}
-
-		// update userId with this version
-		userId = user.ID
-	}
-
-	// -- subscription --
-
-	for _, sub := range subscriptions {
-		err := s.repo.UpsertSubscriptionRecord(ctx, &Subscription{
-			UserID:               userId,
-			Status:               string(sub.Status),
-			StripeSubscriptionID: sub.ID,
-			StripeCustomerID:     customerId,
-		})
-
-		if err != nil {
-			fmt.Printf("\nError when attempting to batch upsert subscriptions during sync: %+v\n\n", err)
-			return fmt.Errorf("error when attempting to batch upsert subscriptions during sync: %+v", err)
-		}
-	}
-
-	// -- payments --
-
-	for _, payment := range payments {
-		err := s.repo.UpsertPayment(ctx, payment.ID, &Payment{
-			UserID:           userId,
-			StripeCustomerID: customerId,
-			StripeIntentID:   payment.ID,
-			Amount:           payment.Amount,
-			Status:           string(payment.Status),
-			Currency:         string(payment.Currency),
-		})
-
-		if err != nil {
-			fmt.Printf("\nError when attempting to upsert payment during sync: %+v\n\n", err)
-			return err
-		}
-	}
-
-	// --- Caching ---
-
-	subCache := make([]*StripeSubscriptionCache, len(subscriptions))
-
-	// -- subscriptions --
-
-	for index, sub := range subscriptions {
-		// extract payment method info safely
-		var pmInfo *PaymentMethodInfo
-
-		if len(subscriptions) > 0 {
-			sub := subscriptions[0]
-
-			if sub.DefaultPaymentMethod != nil && sub.DefaultPaymentMethod.Card != nil {
-				pmInfo = &PaymentMethodInfo{
-					Brand: string(sub.DefaultPaymentMethod.Card.Brand),
-					Last4: sub.DefaultPaymentMethod.Card.Last4,
-				}
-			}
-
-		}
-
-		// add to cache slice
-		subCache[index] = &StripeSubscriptionCache{
-			SubscriptionID:    sub.ID,
-			Status:            string(sub.Status),
-			PriceID:           sub.Items.Data[0].Price.ID,
-			CancelAtPeriodEnd: sub.CancelAtPeriodEnd,
-			PaymentMethod:     pmInfo,
-		}
-	}
-
-	// -- payments --
-
-	paymentCache := make([]*StripePaymentsCache, len(payments))
-
-	for index, payment := range payments {
-		paymentCache[index] = &StripePaymentsCache{
-			ID:     payment.ID,
-			Status: string(payment.Status),
-		}
-	}
-
-	// -- user --
-
-	stripeCusData := StripeCustomerDataRes{
-		ID:                   customer.ID,
-		Address:              convertAddress(customer.Address),
-		Balance:              customer.Balance,
-		CashBalance:          convertCashBalance(customer.CashBalance),
-		Created:              customer.Created,
-		Currency:             string(customer.Currency),
-		DefaultSource:        convertDefaultSource(customer.DefaultSource),
-		Deleted:              customer.Deleted,
-		Delinquent:           customer.Delinquent,
-		Description:          customer.Description,
-		Discount:             convertDiscount(customer.Discount),
-		Email:                customer.Email,
-		InvoiceCreditBalance: customer.InvoiceCreditBalance,
-		InvoicePrefix:        customer.InvoicePrefix,
-		InvoiceSettings:      convertInvoiceSettings(customer.InvoiceSettings),
-		Livemode:             customer.Livemode,
-		Metadata:             customer.Metadata,
-		Name:                 customer.Name,
-		NextInvoiceSequence:  customer.NextInvoiceSequence,
-		Object:               customer.Object,
-		Phone:                customer.Phone,
-		PreferredLocales:     customer.PreferredLocales,
-		Subscriptions:        convertSubscriptions(customer.Subscriptions),
-		Tax:                  convertTax(customer.Tax),
-		TaxExempt:            string(customer.TaxExempt),
-	}
-
-	// combine the two pieces of information into one cache state
-	cacheState := StripeCacheData{
-		CustomerData:  stripeCusData,
-		Subscriptions: subCache,
-		Payments:      paymentCache,
-	}
-
-	cacheStateJSON, err := json.Marshal(cacheState)
-
-	if err != nil {
-		fmt.Printf("\nFailed to marshal cacheState: %+v\n\n", err)
-		return fmt.Errorf("failed to marshal cacheState: %w", err)
-	}
-
-	// update redis
-	err = s.cacheClient.Set(ctx, stripeUpdateCusWithCusIdKey, cacheStateJSON, 0)
-
-	if err != nil {
-		fmt.Printf("\nFailed to sync and store stripe data into cache: %+v\n\n", err)
-		return fmt.Errorf("failed to sync and store stripe data into cache: %w", err)
-	}
-
-	return nil
-}
-
-/**
-* adds/sets the mapping between userId and customerId in cache
-**/
-func (s *service) AddCacheUserIdToCusId(ctx context.Context, userId uuid.UUID, customerId string) error {
-	fmt.Printf("\nupdating customerId to userId in cache..\ncustomerId key provided was :%s\nuserId value provided was: %s\n\n", customerId, userId)
-	key := s.cacheClient.GetUserIdFromCustomerIdKey(customerId)
-	err := s.cacheClient.Set(ctx, key, userId.String(), 0)
-
-	if err != nil {
-		return fmt.Errorf("failed to cache userId to customerId mapping: %w", err)
-	}
-
-	return nil
-}
-
-/**
-* adds/sets the mapping between customerId and userId in cache
-**/
-func (s *service) AddCacheCusIdToUserId(ctx context.Context, customerId string, userId uuid.UUID) error {
-	key := s.cacheClient.GetCustomerIdFromUserIdKey(userId.String())
-	err := s.cacheClient.Set(ctx, key, customerId, 0)
-
-	if err != nil {
-		return fmt.Errorf("failed to cache userId to customerId mapping: %w", err)
-	}
-
-	return nil
-}
-
-/**
-* gets cached customerId with the userId
-**/
-func (s *service) GetCachedCusIdFromUserId(ctx context.Context, userId uuid.UUID) (string, error) {
-	key := s.cacheClient.GetCustomerIdFromUserIdKey(userId.String())
-	customerId, err := s.cacheClient.Get(ctx, key)
-
-	// doesn't exist in cache, error, cache is supposed to have a mapping from this point
-	fmt.Printf("key: %s\n", key)
-	if err == redislib.Nil {
-		fmt.Printf("No customerId exists for this userId in cache %s", userId)
-		// retrive from database instead
-		user, err := s.userService.GetByID(ctx, userId)
-
-		if err != nil {
-			fmt.Printf("No customerId exists for this userId %s", userId)
-			return "", err
-		}
-
-		return user.ID.String(), nil
-	}
-
-	fmt.Printf("\ncustomerId from cache: %s\n\n", customerId)
-
-	return customerId, nil
-}
-
-func (s *service) GetCachedUserIdByCustomerId(ctx context.Context, customerID string) (uuid.UUID, error) {
-	key := s.cacheClient.GetUserIdFromCustomerIdKey(customerID)
-	userIdStr, err := s.cacheClient.Get(ctx, key)
-
-	// key doesn't exist, acquire userId to fill in cache
-	if err == redislib.Nil {
-		user, err := s.userService.GetByStripeCustomerID(ctx, customerID)
-
-		if err != nil {
-			fmt.Printf("err when attempting to get user with customerId %s: %v\n", customerID, err)
-			return uuid.Nil, err
-		}
-
-		// store in cache
-		s.cacheClient.Set(ctx, key, user.ID.String(), 0)
-
-		// return the id
-		return user.ID, nil
-	}
-
-	// unexpected errors
-	if err != nil {
-		fmt.Printf("err when attempting to get userId from cache with customerId %s: %v\n", customerID, err)
-		return uuid.Nil, err
-	}
-
-	// convert back to uuid
-	userId, err := uuid.Parse(userIdStr)
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return userId, err
-}
-
-// --- Full Flow Methods ---
-
-/**
-* Recieves a payment processor event and parses the event
-**/
-func (s *service) ProcessWebhookEvent(ctx context.Context, event *stripe.Event) error {
-	customerId, err := s.paymentProcessor.ProcessWebhookEvent(ctx, event)
-
-	if err != nil {
-		fmt.Printf("\npaymentProcessor method ProcessWebhookEvent could not process incoming event of %+v, err :%+v\n\n", event, err)
-		return err
-	}
-
-	fmt.Printf("Service layer - customerId: %s\n", customerId)
-
-	s.SyncStripeDataToStorage(ctx, customerId)
 
 	return nil
 }

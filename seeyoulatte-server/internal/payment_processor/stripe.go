@@ -138,8 +138,7 @@ func (s *StripeProcessor) extractCustomerIdFromWebhook(event *WebhookEvent) (str
 // Retrieves current state from stripe with teh customer's current information like
 // list of payments as well as current payment details
 
-func (s *StripeProcessor) FetchCurrentState(ctx context.Context, customerId string) (*CurrentState, error) {
-
+func (s *StripeProcessor) FetchCurrentState(ctx context.Context, customerId string) (*CustomerState, error) {
 	// -- customer --
 
 	customer, err := customer.Get(customerId, nil)

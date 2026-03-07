@@ -1,9 +1,11 @@
 package config
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
+	"github.com/darkphotonKN/seeyoulatte-app/internal/cache"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/middleware"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/order"
@@ -31,6 +33,22 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 	router.Use(middleware.StructuredLogger(logger))
 	router.Use(corsMiddleware())
 
+	// Initialize cache client (optional)
+	var cacheClient *cache.Client
+	if os.Getenv("REDIS_HOST") != "" {
+		cacheClient = cache.NewClient(logger)
+		ctx := context.Background()
+		if err := cacheClient.Connect(ctx); err != nil {
+			logger.Warn("Redis cache not available, continuing without cache",
+				slog.String("error", err.Error()))
+			cacheClient = nil
+		} else {
+			logger.Info("Redis cache connected successfully")
+		}
+	} else {
+		logger.Info("Redis not configured, running without cache")
+	}
+
 	// Initialize services
 	// User/Auth service
 	userRepo := user.NewRepository(db)
@@ -49,7 +67,7 @@ func SetupRoutes(db *sqlx.DB, logger *slog.Logger) *gin.Engine {
 
 	// Payment service
 	stripeProcessor := paymentprocessor.NewStripeProcessor()
-	paymentService := payment.NewService(logger, stripeProcessor, orderService, userService, db)
+	paymentService := payment.NewService(logger, stripeProcessor, orderService, userService, db, cacheClient)
 	paymentHandler := payment.NewHandler(paymentService, logger)
 
 	// Health check

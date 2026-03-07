@@ -223,3 +223,42 @@ func (r *repository) UpdateLastLogin(ctx context.Context, userID uuid.UUID) erro
 
 	return nil
 }
+
+// GetByStripeCustomerID retrieves a user by their Stripe customer ID
+func (r *repository) GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*User, error) {
+	var user User
+	query := `
+		SELECT id, email, password_hash, name, bio, location_text,
+			   is_frozen, is_admin, seller_verified_at, stripe_customer_id,
+			   google_id, google_avatar_url, created_at, last_login_at
+		FROM users
+		WHERE stripe_customer_id = $1`
+
+	err := r.db.GetContext(ctx, &user, query, stripeCustomerID)
+	if err != nil {
+		return nil, errorutils.AnalyzeDBErr(err)
+	}
+
+	return &user, nil
+}
+
+// UpdateStripeCustomerID updates a user's Stripe customer ID
+func (r *repository) UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error {
+	query := `UPDATE users SET stripe_customer_id = $1 WHERE id = $2`
+
+	result, err := r.db.ExecContext(ctx, query, stripeCustomerID, userID)
+	if err != nil {
+		return errorutils.AnalyzeDBErr(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return errorutils.ErrNotFound
+	}
+
+	return nil
+}

@@ -26,8 +26,10 @@ type Repository interface {
 	GetByIDNotIsFrozen(ctx context.Context, id uuid.UUID) error
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByGoogleID(ctx context.Context, googleID string) (*User, error)
+	GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*User, error)
 	Update(ctx context.Context, user *User) error
 	UpdateLastLogin(ctx context.Context, userID uuid.UUID) error
+	UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error
 }
 
 type service struct {
