@@ -262,3 +262,16 @@ func (r *repository) UpdateStripeCustomerID(ctx context.Context, userID uuid.UUI
 
 	return nil
 }
+
+// GetUserIDByStripeCustomerID retrieves only the user ID by their Stripe customer ID
+func (r *repository) GetUserIDByStripeCustomerID(ctx context.Context, stripeCustomerID string) (uuid.UUID, error) {
+	var userID uuid.UUID
+	query := `SELECT id FROM users WHERE stripe_customer_id = $1`
+
+	err := r.db.GetContext(ctx, &userID, query, stripeCustomerID)
+	if err != nil {
+		return uuid.Nil, errorutils.AnalyzeDBErr(err)
+	}
+
+	return userID, nil
+}

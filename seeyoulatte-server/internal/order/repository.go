@@ -170,3 +170,22 @@ func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 
 	return nil
 }
+
+// GetPendingPaymentOrdersByUser retrieves all orders with pending_payment state for a specific user
+func (r *repository) GetPendingPaymentOrdersByUser(ctx context.Context, userID uuid.UUID) ([]*Order, error) {
+	query := `
+		SELECT id, listing_id, buyer_id, seller_id, quantity, amount,
+		       state, seller_respond_by, review_ends_at, created_at
+		FROM orders
+		WHERE buyer_id = $1 AND state = 'pending_payment'
+		ORDER BY created_at DESC
+	`
+
+	var orders []*Order
+	err := r.db.SelectContext(ctx, &orders, query, userID)
+	if err != nil {
+		return nil, errorutils.AnalyzeDBErr(err)
+	}
+
+	return orders, nil
+}

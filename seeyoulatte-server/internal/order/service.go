@@ -19,6 +19,7 @@ type Repository interface {
 	CreateTx(ctx context.Context, tx *sqlx.Tx, order *Order) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Order, error)
 	GetAll(ctx context.Context) ([]Order, error)
+	GetPendingPaymentOrdersByUser(ctx context.Context, userID uuid.UUID) ([]*Order, error)
 	Update(ctx context.Context, order *Order) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -151,6 +152,23 @@ func (s *service) GetAll(ctx context.Context) ([]Order, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getting orders: %w", err)
 	}
+	return orders, nil
+}
+
+// GetPendingPaymentOrdersByUser retrieves all orders with pending_payment state for a specific user
+func (s *service) GetPendingPaymentOrdersByUser(ctx context.Context, userID uuid.UUID) ([]*Order, error) {
+	orders, err := s.repo.GetPendingPaymentOrdersByUser(ctx, userID)
+	if err != nil {
+		s.logger.Error("failed to get pending payment orders",
+			slog.String("user_id", userID.String()),
+			slog.String("error", err.Error()))
+		return nil, fmt.Errorf("getting pending payment orders: %w", err)
+	}
+
+	s.logger.Debug("retrieved pending payment orders",
+		slog.String("user_id", userID.String()),
+		slog.Int("count", len(orders)))
+
 	return orders, nil
 }
 

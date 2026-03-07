@@ -37,6 +37,7 @@ type PaymentProcessor interface {
 // OrderService interface - what we need from order service
 type OrderService interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (*order.Order, error)
+	GetPendingPaymentOrdersByUser(ctx context.Context, userID uuid.UUID) ([]*order.Order, error)
 	// TODO: Implement TransitionState in order service for state machine transitions
 	// TransitionState(ctx context.Context, orderID uuid.UUID, event string, actor string) error
 }
@@ -45,6 +46,7 @@ type OrderService interface {
 type UserService interface {
 	GetByID(ctx context.Context, userID uuid.UUID) (*user.User, error)
 	GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*user.User, error)
+	GetUserIDByStripeCustomerID(ctx context.Context, stripeCustomerID string) (uuid.UUID, error)
 	UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error
 }
 
@@ -385,6 +387,43 @@ func (s *service) SyncPaymentProcessorDataToStorage(ctx context.Context, custome
 
 	slog.Debug("current state retrieved from payment processor",
 		"currentState", currentState)
+
+	userId, err := s.GetCachedUserIdByCustomerId(ctx, customerId)
+
+	if err != nil {
+		// exception
+		s.logger.Warn("exception error when getting user id from customer id from cache",
+			"customer_id", customerId)
+
+		// io from database only if cache doesnt exist
+		// TODO: get userId from database via customer id, or pending orders directly with customerId
+		userId, err = s.userService.GetUserIDByStripeCustomerID(ctx, customerId)
+		if err != nil {
+			s.logger.Error("Couldn't get userId from database with customerId after cache already failed.",
+				"customer_id", customerId,
+			)
+			return err
+		}
+
+		// update cache with the correct mapping
+		s.AddCacheCustomerIdToUserId(ctx, customerId, userId)
+	}
+
+	pendingOrders, err := s.orderService.GetPendingPaymentOrdersByUser(ctx, userId)
+
+	// store update in database
+	checkedPaymentsMap := make(map[string]*paymentprocessor.PaymentState)
+	for _, payment := range currentState.Payments {
+		checkedPaymentsMap[payment.OrderID] = payment
+	}
+	for _, order := range pendingOrders {
+		// cross reference which orders still pending if they have been updated
+		// on stripe for this user
+		matchingOrder := checkedPaymentsMap[order.ID.String()]
+		if matchingOrder != nil {
+			// TODO: process
+		}
+	}
 
 	return nil
 }

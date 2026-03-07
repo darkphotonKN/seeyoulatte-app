@@ -27,6 +27,7 @@ type Repository interface {
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByGoogleID(ctx context.Context, googleID string) (*User, error)
 	GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*User, error)
+	GetUserIDByStripeCustomerID(ctx context.Context, stripeCustomerID string) (uuid.UUID, error)
 	Update(ctx context.Context, user *User) error
 	UpdateLastLogin(ctx context.Context, userID uuid.UUID) error
 	UpdateStripeCustomerID(ctx context.Context, userID uuid.UUID, stripeCustomerID string) error
