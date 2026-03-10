@@ -139,6 +139,7 @@ func (s *StripeProcessor) extractCustomerIdFromWebhook(event *WebhookEvent) (str
 // list of payments as well as current payment details
 
 func (s *StripeProcessor) FetchCurrentState(ctx context.Context, customerId string) (*CustomerState, error) {
+
 	// -- customer --
 
 	customer, err := customer.Get(customerId, nil)

@@ -405,23 +405,24 @@ func (s *service) SyncPaymentProcessorDataToStorage(ctx context.Context, custome
 			return err
 		}
 
-		// update cache with the correct mapping
+		// update cache with the customerId to userId mapping
 		s.AddCacheCustomerIdToUserId(ctx, customerId, userId)
 	}
 
 	pendingOrders, err := s.orderService.GetPendingPaymentOrdersByUser(ctx, userId)
 
 	// store update in database
-	checkedPaymentsMap := make(map[string]*paymentprocessor.PaymentState)
+	processorPaymentsMap := make(map[string]*paymentprocessor.PaymentState)
 	for _, payment := range currentState.Payments {
-		checkedPaymentsMap[payment.OrderID] = payment
+		processorPaymentsMap[payment.OrderID] = payment
 	}
+
 	for _, order := range pendingOrders {
 		// cross reference which orders still pending if they have been updated
 		// on stripe for this user
-		matchingOrder := checkedPaymentsMap[order.ID.String()]
+		matchingOrder := processorPaymentsMap[order.ID.String()]
 		if matchingOrder != nil {
-			// TODO: process
+			// TODO: use state machine to update state
 		}
 	}
 

@@ -141,7 +141,6 @@ func (s *service) GetCachedUserIdByCustomerId(ctx context.Context, customerID st
 	return userId, nil
 }
 
-
 // GetPaymentProcessorData retrieves payment processor data from cache
 func (s *service) GetPaymentProcessorData(ctx context.Context, customerId string) (*PaymentProcessorCacheData, error) {
 	if s.cacheClient == nil {
@@ -165,3 +164,4 @@ func (s *service) GetPaymentProcessorData(ctx context.Context, customerId string
 func (s *service) SetCacheClient(client interfaces.Cache) {
 	s.cacheClient = client
 }
+
