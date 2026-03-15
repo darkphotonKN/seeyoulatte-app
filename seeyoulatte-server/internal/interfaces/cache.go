@@ -31,3 +31,4 @@ type Cache interface {
 	GetCustomerIdFromUserIdKey(userId string) string
 	GetCustomerDataKey(customerId string) string
 }
+

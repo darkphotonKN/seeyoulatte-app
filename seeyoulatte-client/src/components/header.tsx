@@ -39,14 +39,9 @@ export function Header() {
                 Browse
               </Link>
               {mounted && user && (
-                <>
-                  <Link href="/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                    My Orders
-                  </Link>
-                  <Link href="/profile" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                    Profile
-                  </Link>
-                </>
+                <Link href="/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  My Orders
+                </Link>
               )}
             </nav>
           </div>
@@ -57,9 +52,12 @@ export function Header() {
 
             {mounted && user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-muted-foreground hidden sm:inline-block">
+                <Link
+                  href="/profile"
+                  className="text-sm text-muted-foreground hidden sm:inline-block hover:text-foreground transition-colors"
+                >
                   {user.name || user.email}
-                </span>
+                </Link>
                 <Button onClick={handleLogout} variant="outline" size="sm" className="btn-text">
                   Sign Out
                 </Button>

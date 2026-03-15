@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 
-	constantsstate "github.com/darkphotonKN/seeyoulatte-app/internal/constants/state"
+	"github.com/darkphotonKN/seeyoulatte-app/internal/constants"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	dbutils "github.com/darkphotonKN/seeyoulatte-app/internal/utils/db"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/utils/errorutils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"google.golang.org/grpc/balancer/grpclb/state"
 )
 
 type Repository interface {
@@ -21,6 +22,7 @@ type Repository interface {
 	GetAll(ctx context.Context) ([]Order, error)
 	GetPendingPaymentOrdersByUser(ctx context.Context, userID uuid.UUID) ([]*Order, error)
 	Update(ctx context.Context, order *Order) error
+	UpdateStateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, userID uuid.UUID, newState state.OrderState) (*Order, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -112,7 +114,7 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, req *CreateOrder
 			SellerID:  l.SellerID,
 			Quantity:  req.Quantity,
 			Amount:    amount,
-			State:     string(constantsstate.StatePendingPayment),
+			State:     string(constants.StatePendingPayment),
 		}
 
 		if err := s.repo.CreateTx(ctx, tx, order); err != nil {
@@ -200,15 +202,6 @@ func (s *service) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, re
 	return order, nil
 }
 
-func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	// TODO: Add validation to ensure user has permission to delete this order
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("deleting order: %w", err)
-	}
-
-	s.logger.Info("order deleted",
-		slog.String("order_id", id.String()),
-		slog.String("user_id", userID.String()))
-
-	return nil
+func (s *service) UpdateStateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, userID uuid.UUID, state constants.OrderState) (*Order, error) {
+	return s.repo.UpdateStateTx(ctx, tx, id, userID, state)
 }

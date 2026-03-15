@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	constantsstate "github.com/darkphotonKN/seeyoulatte-app/internal/constants/state"
+	"github.com/darkphotonKN/seeyoulatte-app/internal/constants"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/listing"
 	dbutils "github.com/darkphotonKN/seeyoulatte-app/internal/utils/db"
 	"github.com/darkphotonKN/seeyoulatte-app/internal/utils/errorutils"
@@ -66,7 +66,7 @@ func (m *MockRepository) Delete(ctx context.Context, id uuid.UUID) error {
 // MockListingService implements the ListingService interface for testing
 type MockListingService struct {
 	GetByIDWithSellerForUpdateTxFunc func(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*listing.ListingWithSeller, error)
-	UpdateTxFunc                      func(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, sellerID uuid.UUID, req *listing.UpdateListingRequest) (*listing.Listing, error)
+	UpdateTxFunc                     func(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, sellerID uuid.UUID, req *listing.UpdateListingRequest) (*listing.Listing, error)
 }
 
 func (m *MockListingService) GetByIDWithSellerForUpdateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*listing.ListingWithSeller, error) {
@@ -136,8 +136,8 @@ func TestCreateOrder_SuccessfulFlow(t *testing.T) {
 			if order.Amount != 51.00 {
 				t.Errorf("Expected amount 51.00, got %f", order.Amount)
 			}
-			if order.State != string(constantsstate.StatePendingPayment) {
-				t.Errorf("Expected state %s, got %s", constantsstate.StatePendingPayment, order.State)
+			if order.State != string(constants.StatePendingPayment) {
+				t.Errorf("Expected state %s, got %s", constants.StatePendingPayment, order.State)
 			}
 
 			// Simulate DB setting the ID
@@ -457,3 +457,4 @@ func TestExecTx_TransactionBehavior(t *testing.T) {
 		}
 	})
 }
+

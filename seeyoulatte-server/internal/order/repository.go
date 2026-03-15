@@ -3,10 +3,12 @@ package order
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/darkphotonKN/seeyoulatte-app/internal/utils/errorutils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"google.golang.org/grpc/balancer/grpclb/state"
 )
 
 type repository struct {
@@ -151,6 +153,48 @@ func (r *repository) Update(ctx context.Context, order *Order) error {
 	return nil
 }
 
+func (r *repository) UpdateStateTx(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, userID uuid.UUID, newState state.OrderState) (*Order, error) {
+	query := `
+		UPDATE orders SET
+			state = $2,
+		WHERE id = $1 
+		AND user_id = $3
+	`
+
+	result, err := r.db.ExecContext(
+		ctx,
+		query,
+	)
+
+	if err != nil {
+		return nil, errorutils.AnalyzeDBErr(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("checking affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, errorutils.ErrNotFound
+	}
+
+	return nil, nil
+}
+
+func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	// TODO: Add validation to ensure user has permission to delete this order
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("deleting order: %w", err)
+	}
+
+	s.logger.Info("order deleted",
+		slog.String("order_id", id.String()),
+		slog.String("user_id", userID.String()))
+
+	return nil
+}
+
 func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM orders WHERE id = $1`
 
@@ -189,3 +233,4 @@ func (r *repository) GetPendingPaymentOrdersByUser(ctx context.Context, userID u
 
 	return orders, nil
 }
+
