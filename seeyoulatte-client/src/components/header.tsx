@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Coffee } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/stores/auth.store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useRouter } from "next/navigation";
 
 export function Header() {

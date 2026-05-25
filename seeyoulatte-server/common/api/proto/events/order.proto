@@ -1,0 +1,25 @@
+syntax = "proto3";
+package events;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/events";
+
+// Order domain events — emitted by order-service onto the "order.events" exchange.
+
+message OrderCreatedEvent {
+  string id = 1;
+  string buyer_id = 2;
+  string seller_id = 3;
+  string listing_id = 4;
+  double amount = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message OrderStateChangedEvent {
+  string id = 1;
+  string from_state = 2;
+  string to_state = 3;
+  string actor = 4;
+  google.protobuf.Timestamp changed_at = 5;
+}

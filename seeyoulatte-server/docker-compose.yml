@@ -1,27 +1,176 @@
-version: "3.8"
+version: "3.9"
+
+# Root infrastructure for the SeeYouLatte microservice strangler.
+#
+# This file declares the cross-service infrastructure (service discovery,
+# message broker, cache) plus one postgres per service. Mirrors the
+# fireplace layout. Ports are intentionally offset from fireplace's defaults
+# so both projects can run side-by-side on the same machine.
+#
+# Bring everything up with: docker compose up -d (from this directory).
+# Go services themselves run outside Docker via `make dev` (Air) in each
+# services/<name>/ folder, matching the fireplace dev loop.
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: seeyoulatte_postgres
+  seeyoulatte-consul:
+    image: hashicorp/consul
+    container_name: seeyoulatte-consul
+    command: agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
+    ports:
+      - "8521:8500"
+      - "8621:8600/udp"
+    volumes:
+      - seeyoulatte-consul-data:/consul/data
+    networks:
+      - seeyoulatte-network
+
+  seeyoulatte-rabbitmq:
+    image: "rabbitmq:3-management"
+    container_name: seeyoulatte-rabbitmq
+    ports:
+      - "5685:5672"
+      - "15685:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=seeyoulatte
+      - RABBITMQ_DEFAULT_PASS=seeyoulatte
+    volumes:
+      - seeyoulatte-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - seeyoulatte-network
+
+  seeyoulatte-redis:
+    image: redis:7-alpine
+    container_name: seeyoulatte-redis
+    ports:
+      - "6397:6379"
+    command: redis-server --appendonly yes --requirepass password
+    volumes:
+      - seeyoulatte-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - seeyoulatte-network
+
+  # api-gateway DB (listings, payments, anything still living in the monolith)
+  gateway-db:
+    image: postgres:17
+    container_name: seeyoulatte_gateway_db
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: seeyoulatte_db
+      POSTGRES_DB: seeyoulatte_gateway_db
     ports:
-      - "5466:5432"
+      - "5500:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - seeyoulatte_gateway_pgdata:/var/lib/postgresql/data
+    networks:
+      - seeyoulatte-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: seeyoulatte_redis
-    command: redis-server --requirepass password --port 6395
+  # Auth Service Database (ordinal 1)
+  auth-service-db:
+    image: postgres:17
+    container_name: seeyoulatte_auth_service_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: seeyoulatte_auth_service_db
     ports:
-      - "6395:6395"
+      - "5501:5432"
     volumes:
-      - redis_data:/data
+      - seeyoulatte_auth_service_pgdata:/var/lib/postgresql/data
+    networks:
+      - seeyoulatte-network
+
+  auth-service-test-db:
+    image: postgres:17
+    container_name: seeyoulatte_auth_service_test_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: seeyoulatte_auth_service_test_db
+    ports:
+      - "6501:5432"
+    volumes:
+      - seeyoulatte_auth_service_test_pgdata:/var/lib/postgresql/data
+    restart: "no"
+    networks:
+      - seeyoulatte-network
+
+  # Baseline Service Database (ordinal 2) — decorative, no business logic
+  baseline-service-db:
+    image: postgres:17
+    container_name: seeyoulatte_baseline_service_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: seeyoulatte_baseline_service_db
+    ports:
+      - "5502:5432"
+    volumes:
+      - seeyoulatte_baseline_service_pgdata:/var/lib/postgresql/data
+    networks:
+      - seeyoulatte-network
+
+  baseline-service-test-db:
+    image: postgres:17
+    container_name: seeyoulatte_baseline_service_test_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: seeyoulatte_baseline_service_test_db
+    ports:
+      - "6502:5432"
+    volumes:
+      - seeyoulatte_baseline_service_test_pgdata:/var/lib/postgresql/data
+    restart: "no"
+    networks:
+      - seeyoulatte-network
+
+  # Order Service Database (ordinal 3)
+  order-service-db:
+    image: postgres:17
+    container_name: seeyoulatte_order_service_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: seeyoulatte_order_service_db
+    ports:
+      - "5503:5432"
+    volumes:
+      - seeyoulatte_order_service_pgdata:/var/lib/postgresql/data
+    networks:
+      - seeyoulatte-network
+
+  order-service-test-db:
+    image: postgres:17
+    container_name: seeyoulatte_order_service_test_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: seeyoulatte_order_service_test_db
+    ports:
+      - "6503:5432"
+    volumes:
+      - seeyoulatte_order_service_test_pgdata:/var/lib/postgresql/data
+    restart: "no"
+    networks:
+      - seeyoulatte-network
+
+networks:
+  seeyoulatte-network:
+    name: seeyoulatte-network
 
 volumes:
-  postgres_data:
-  redis_data:
+  seeyoulatte-consul-data:
+  seeyoulatte-rabbitmq-data:
+  seeyoulatte-redis-data:
+  seeyoulatte_gateway_pgdata:
+  seeyoulatte_auth_service_pgdata:
+  seeyoulatte_auth_service_test_pgdata:
+  seeyoulatte_baseline_service_pgdata:
+  seeyoulatte_baseline_service_test_pgdata:
+  seeyoulatte_order_service_pgdata:
+  seeyoulatte_order_service_test_pgdata:

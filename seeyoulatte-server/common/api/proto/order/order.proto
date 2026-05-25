@@ -1,0 +1,80 @@
+syntax = "proto3";
+package order;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/order";
+
+// OrderService — owns orders + ledger entries for SeeYouLatte.
+// The api-gateway calls Create with pre-validated listing + seller info
+// (since listing-service hasn't been extracted yet).
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (Order);
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc GetPendingPaymentOrdersByUser(GetPendingPaymentOrdersByUserRequest) returns (ListOrdersResponse);
+  rpc UpdateOrder(UpdateOrderRequest) returns (Order);
+  rpc DeleteOrder(DeleteOrderRequest) returns (google.protobuf.Empty);
+
+  // Transition an order through its state machine — payment-confirmed,
+  // accepted, fulfilled, etc. Issued by api-gateway from webhook handlers.
+  rpc TransitionState(TransitionStateRequest) returns (Order);
+}
+
+message Order {
+  string id = 1;
+  string listing_id = 2;
+  string buyer_id = 3;
+  string seller_id = 4;
+  int32 quantity = 5;
+  double amount = 6;
+  string state = 7;
+  optional google.protobuf.Timestamp seller_respond_by = 8;
+  optional google.protobuf.Timestamp review_ends_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+// CreateOrderRequest — api-gateway passes pre-validated listing/seller info
+// since listing-service hasn't been extracted yet. order-service trusts the
+// caller for listing data and only validates state machine invariants.
+message CreateOrderRequest {
+  string buyer_id = 1;
+  string listing_id = 2;
+  string seller_id = 3;
+  int32 quantity = 4;
+  double amount = 5;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message ListOrdersRequest {}
+
+message GetPendingPaymentOrdersByUserRequest {
+  string user_id = 1;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+}
+
+message UpdateOrderRequest {
+  string id = 1;
+  string user_id = 2;
+  optional string state = 3;
+  optional google.protobuf.Timestamp seller_respond_by = 4;
+  optional google.protobuf.Timestamp review_ends_at = 5;
+}
+
+message DeleteOrderRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message TransitionStateRequest {
+  string order_id = 1;
+  string target_state = 2;
+  string actor = 3; // "system", "buyer", "seller", "admin"
+}

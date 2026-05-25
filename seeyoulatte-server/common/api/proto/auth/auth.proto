@@ -1,0 +1,110 @@
+syntax = "proto3";
+package auth;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/auth";
+
+// AuthService — owns users + authentication for SeeYouLatte. Token issuance
+// happens here; JWT validation stays in the api-gateway middleware with a
+// shared secret, so per-request auth doesn't pay a remote-hop cost.
+service AuthService {
+  rpc SignUp(SignUpRequest) returns (AuthResponse);
+  rpc SignIn(SignInRequest) returns (AuthResponse);
+  rpc GoogleAuth(GoogleAuthRequest) returns (AuthResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (User);
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+
+  // Used by order-service to verify a buyer isn't frozen before creating
+  // an order. Returns NOT_FOUND/PERMISSION_DENIED if frozen.
+  rpc VerifyUserNotFrozen(VerifyUserNotFrozenRequest) returns (google.protobuf.Empty);
+
+  // Stripe customer id management. The api-gateway payment flow calls these.
+  rpc GetByStripeCustomerID(GetByStripeCustomerIDRequest) returns (User);
+  rpc UpdateStripeCustomerID(UpdateStripeCustomerIDRequest) returns (google.protobuf.Empty);
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  optional string bio = 4;
+  optional string location_text = 5;
+  bool is_frozen = 6;
+  optional string avatar_url = 7;
+  bool is_verified = 8;
+  optional string preferred_pickup_instructions = 9;
+  optional string stripe_customer_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp last_login_at = 13;
+}
+
+message SignUpRequest {
+  string email = 1;
+  string password = 2;
+  string name = 3;
+}
+
+message SignInRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message GoogleAuthRequest {
+  string id_token = 1;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// AuthResponse mirrors the monolith's previous AuthResponse so the gateway HTTP
+// layer can map it 1:1 to the existing JSON shape.
+message AuthResponse {
+  User user = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 access_expires_in = 4;
+  int64 refresh_expires_in = 5;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message UpdateProfileRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string bio = 3;
+  optional string location_text = 4;
+  optional string preferred_pickup_instructions = 5;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message VerifyUserNotFrozenRequest {
+  string id = 1;
+}
+
+message GetByStripeCustomerIDRequest {
+  string stripe_customer_id = 1;
+}
+
+message UpdateStripeCustomerIDRequest {
+  string user_id = 1;
+  string stripe_customer_id = 2;
+}
