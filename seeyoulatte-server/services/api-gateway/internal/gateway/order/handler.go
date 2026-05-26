@@ -31,6 +31,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	o, err := h.client.CreateOrder(c.Request.Context(), buyerID, &req)
 	if err != nil {
 		code := httpStatusFromGRPC(err)

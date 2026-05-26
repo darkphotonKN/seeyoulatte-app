@@ -1,47 +1,42 @@
-# Binaries for programs and plugins
+# Compiled binaries — patterns are UN-anchored so they match in every
+# services/* subdir, not just the workspace root.
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-
-# Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool
+# Go build outputs (Makefile writes to ./bin/, Air writes to ./tmp/)
+bin/
+tmp/
+
+# Test coverage
 *.out
+coverage.out
+coverage.html
 
 # Dependency directories
 vendor/
 
-# Go workspace file
-go.work
+# Go workspace local state — keep go.work, ignore the sum so it's regenerated
 go.work.sum
 
-# Environment variables
+# Environment files (each service has its own .env; commit .env.example only)
 .env
 .env.local
+.env.*.local
 
-# IDE files
+# Air build error log (kept in the watched dir)
+build-errors.log
+
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-.vscode/
 
-# Build output
-/build/
-/dist/
-/bin/
-/tmp/
-
-# Test artifacts
-coverage.out
-coverage.html
-
-# Air live reloading
-tmp/
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db

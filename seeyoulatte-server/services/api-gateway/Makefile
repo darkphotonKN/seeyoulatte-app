@@ -1,9 +1,9 @@
 # =============================================================================
-# Cashflow Service Makefile
+# api-gateway Makefile
 # =============================================================================
 
 # Variables
-BINARY_NAME=cashflow
+BINARY_NAME=api-gateway
 MAIN_PATH=./cmd/main.go
 BIN_DIR=./bin
 MIGRATIONS_PATH=./migrations
