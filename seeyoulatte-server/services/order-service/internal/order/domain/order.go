@@ -93,6 +93,8 @@ func Reconstitute(
 	}
 }
 
+// DDD verbs
+
 // attempt a payment
 func (o *Order) Pay() error {
 	// validate and mutate struct
