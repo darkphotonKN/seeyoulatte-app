@@ -20,10 +20,21 @@ const (
 	StateRefunded       OrderState = "refunded"
 )
 
+func (s OrderState) IsValid() bool {
+	switch s {
+	case StateAccepted, StateCancelled, StateCompleted, StateDisputed, StateFulfilled, StatePendingPayment, StatePaid, StateRefunded:
+		return true
+	default:
+		return false
+	}
+}
+
 var (
-	ErrInvalidQuantity = errors.New("invalid quanity")
+	ErrInvalidQuantity = errors.New("invalid quantity")
 	ErrInvalidAmount   = errors.New("invalid amount")
 	ErrBuyerIsSeller   = errors.New("buyer is seller")
+	ErrInvalidID       = errors.New("invalid order id")
+	ErrInvalidState    = errors.New("invalid order state")
 )
 
 type Order struct {
@@ -71,32 +82,51 @@ func NewOrder(listingID, buyerID, sellerID uuid.UUID, quantity int, amount float
 // package) cannot build the struct literally, so the domain exposes this door.
 // ALSO: can use sanity checks like ID and state validation, but don't redo business
 // logic checks.
-func Reconstitute(
-	id, listingID, buyerID, sellerID uuid.UUID,
-	quantity int,
-	amount float64,
-	state OrderState,
-	sellerRespondBy, reviewEndsAt *time.Time,
-	createdAt time.Time,
-) *Order {
-	return &Order{
-		id:              id,
-		listingID:       listingID,
-		buyerID:         buyerID,
-		sellerID:        sellerID,
-		quantity:        quantity,
-		amount:          amount,
-		state:           state,
-		sellerRespondBy: sellerRespondBy,
-		reviewEndsAt:    reviewEndsAt,
-		createdAt:       createdAt,
+
+type ReconstituteParams struct {
+	ID              uuid.UUID
+	ListingID       uuid.UUID
+	BuyerID         uuid.UUID
+	SellerID        uuid.UUID
+	Quantity        int
+	Amount          float64
+	State           OrderState
+	SellerRespondBy *time.Time
+	ReviewEndsAt    *time.Time
+	CreatedAt       time.Time
+}
+
+func Reconstitute(p ReconstituteParams) (*Order, error) {
+	// sanity checks
+	if p.ID == uuid.Nil {
+		return nil, ErrInvalidID
 	}
+	if !p.State.IsValid() {
+		return nil, ErrInvalidState
+	}
+	return &Order{
+		id:              p.ID,
+		listingID:       p.ListingID,
+		buyerID:         p.BuyerID,
+		sellerID:        p.SellerID,
+		quantity:        p.Quantity,
+		amount:          p.Amount,
+		state:           p.State,
+		sellerRespondBy: p.SellerRespondBy,
+		reviewEndsAt:    p.ReviewEndsAt,
+		createdAt:       p.CreatedAt,
+	}, nil
 }
 
 // DDD verbs
 
 // attempt a payment
-func (o *Order) Pay() error {
+// NOTE: DISCUSS BUG WITH KIKI & NICK
+func (o *Order) Pay(now time.Time) error {
+	// set deadline for seller
+	deadline := now.Add(time.Hour * 24)
+	o.sellerRespondBy = &deadline
+
 	// validate and mutate struct
 	return o.transitionTo(StatePaid)
 }
@@ -107,8 +137,15 @@ func (o *Order) Accept() error {
 }
 
 // seller marks the order as delivered to the buyer
-func (o *Order) Fulfill() error {
-	return o.transitionTo(StateFulfilled)
+func (o *Order) Fulfill(now time.Time) error {
+	if err := o.transitionTo(StateFulfilled); err != nil {
+		return ErrTransitionNotAllowed
+	}
+
+	deadline := now.Add(time.Hour * 24)
+	o.reviewEndsAt = &deadline
+
+	return nil
 }
 
 // buyer raises a dispute against a fulfilled order
@@ -130,3 +167,39 @@ func (o *Order) Refund() error {
 func (o *Order) Cancel() error {
 	return o.transitionTo(StateCancelled)
 }
+
+// OrderSnapshot is a read-only copy of an order's state for the edges
+// (persistence mapping, gRPC response, event payloads). One-way: entity → outside.
+// Mutating a snapshot never affects the entity. Writes still go through verbs.
+type OrderSnapshot struct {
+	ID              uuid.UUID
+	ListingID       uuid.UUID
+	BuyerID         uuid.UUID
+	SellerID        uuid.UUID
+	Quantity        int
+	Amount          float64
+	State           OrderState
+	SellerRespondBy *time.Time
+	ReviewEndsAt    *time.Time
+	CreatedAt       time.Time
+}
+
+func (o *Order) Snapshot() OrderSnapshot {
+	return OrderSnapshot{
+		ID:              o.id,
+		ListingID:       o.listingID,
+		BuyerID:         o.buyerID,
+		SellerID:        o.sellerID,
+		Quantity:        o.quantity,
+		Amount:          o.amount,
+		State:           o.state,
+		SellerRespondBy: o.sellerRespondBy,
+		ReviewEndsAt:    o.reviewEndsAt,
+		CreatedAt:       o.createdAt,
+	}
+
+}
+
+// getters
+func (o *Order) ID() uuid.UUID     { return o.id }
+func (o *Order) State() OrderState { return o.state }
