@@ -1,9 +1,9 @@
 -- Create orders table
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    listing_id UUID REFERENCES listings(id) NOT NULL,
-    buyer_id UUID REFERENCES users(id) NOT NULL,
-    seller_id UUID REFERENCES users(id) NOT NULL,  -- Denormalized from listing for query convenience
+    listing_id UUID NOT NULL,
+    buyer_id UUID NOT NULL,
+    seller_id UUID NOT NULL,  -- Denormalized from listing for query convenience
     quantity INTEGER NOT NULL DEFAULT 1,            -- How many bags/slots the buyer ordered
     amount DECIMAL(10,2) NOT NULL,                  -- Total price (listing.price * quantity)
     state VARCHAR(30) NOT NULL DEFAULT 'pending_payment',

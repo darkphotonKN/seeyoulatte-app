@@ -59,6 +59,7 @@ func NewOrder(listingID, buyerID, sellerID uuid.UUID, quantity int, amount float
 	if amount <= 0 {
 		return nil, ErrInvalidAmount
 	}
+
 	if buyerID == sellerID {
 		return nil, ErrBuyerIsSeller
 	}
@@ -197,7 +198,6 @@ func (o *Order) Snapshot() OrderSnapshot {
 		ReviewEndsAt:    o.reviewEndsAt,
 		CreatedAt:       o.createdAt,
 	}
-
 }
 
 // getters
