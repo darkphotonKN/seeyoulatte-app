@@ -35,6 +35,7 @@ var (
 	ErrBuyerIsSeller   = errors.New("buyer is seller")
 	ErrInvalidID       = errors.New("invalid order id")
 	ErrInvalidState    = errors.New("invalid order state")
+	ErrOrderNotFound   = errors.New("order not found")
 )
 
 type Order struct {

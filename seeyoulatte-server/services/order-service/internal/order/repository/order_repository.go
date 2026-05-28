@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/domain"
 	"github.com/google/uuid"
@@ -15,13 +16,16 @@ import (
 // Separate from domain.Order on purpose: schema can evolve independently from
 // the domain model, and the mapper is the bridge.
 type orderRow struct {
-	id         uuid.UUID `db:"id"`
-	listing_id uuid.UUID `db:"listing_id"`
-	buyer_id   uuid.UUID `db:"buyer_id"`
-	seller_id  uuid.UUID `db:"seller_id"`
-	quantity   int       `db:"quantity"`
-	amount     uuid.UUID `db:"amount"`
-	state      uuid.UUID `db:"state"`
+	ID              uuid.UUID  `db:"id"`
+	ListingID       uuid.UUID  `db:"listing_id"`
+	BuyerID         uuid.UUID  `db:"buyer_id"`
+	SellerID        uuid.UUID  `db:"seller_id"`
+	Quantity        int        `db:"quantity"`
+	Amount          float64    `db:"amount"`
+	State           string     `db:"state"`
+	SellerRespondBy *time.Time `db:"seller_respond_by"`
+	ReviewEndsAt    *time.Time `db:"review_ends_at"`
+	CreatedAt       time.Time  `db:"created_at"`
 }
 
 // OrderRepository implements domain.OrderRepository.
@@ -37,39 +41,93 @@ func NewOrderRepository(db *sqlx.DB) *OrderRepository {
 // FindByID loads a row and rebuilds the rich entity via Reconstitute.
 // This is the only place in the codebase that turns a DB row into a *domain.Order.
 func (r *OrderRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
-	// 1. SELECT into orderRow (sqlx GetContext, plain SELECT by id).
-	//    On sql.ErrNoRows → return domain.ErrOrderNotFound (translate
-	//    persistence error → domain error so the usecase sees only domain vocab).
 	query := `
 	SELECT
+		id,
+		listing_id,
+		buyer_id,
+		seller_id,
+		quantity,
+		amount,
+		state,
+		seller_respond_by,
+		review_ends_at,
+		created_at
+	FROM orders
+	WHERE id = $1
 	`
+	var row orderRow // db specific struct
 
-	// 2. Map orderRow → domain.ReconstituteParams (mechanical, field by field).
+	// 1. pull order row from the database first
+	err := r.db.GetContext(ctx, &row, query, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, domain.ErrOrderNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error querying order %s: %w", id, err)
+	}
 
-	// 3. Call domain.Reconstitute(params). Wrap its error if any —
-	//    Reconstitute only fails on structural sanity (invalid id, invalid state),
-	//    which means the DB has garbage. That's a data integrity bug, not a user
-	//    error — surface it loudly.
+	mappedToDomain := domain.ReconstituteParams{
+		ID:              row.ID,
+		ListingID:       row.ListingID,
+		BuyerID:         row.BuyerID,
+		SellerID:        row.SellerID,
+		Quantity:        row.Quantity,
+		Amount:          row.Amount,
+		State:           domain.OrderState(row.State),
+		SellerRespondBy: row.SellerRespondBy,
+		ReviewEndsAt:    row.ReviewEndsAt,
+		CreatedAt:       row.CreatedAt,
+	}
 
-	// 4. Return the rich entity.
+	order, err := domain.Reconstitute(mappedToDomain)
+	if err != nil {
+		return nil, fmt.Errorf("reconstituting order %s from db row: %w", id, err)
+	}
+
+	return order, nil
 }
 
 // Save persists a mutated aggregate. Reads state out via Snapshot()
 // (the one read-out door for sealed fields).
 func (r *OrderRepository) Save(ctx context.Context, order *domain.Order) error {
-	// 1. snap := order.Snapshot()
+	// get the fields out from the order and save them in a copy
+	snap := order.Snapshot()
 
-	// 2. UPDATE orders SET <mutable fields> WHERE id = $1
-	//    Mutable: state, seller_respond_by, review_ends_at
-	//    NOT mutable: id, listing_id, buyer_id, seller_id, quantity, amount, created_at
-	//    (those are set at birth and never change — don't include them in the UPDATE)
+	// update row in db
+	query := `
+	UPDATE orders SET
+		state = :state,
+		seller_respond_by = :seller_respond_by,
+		review_ends_at = :review_ends_at
+	WHERE id = :id
+	`
+	res, err := r.db.NamedExecContext(ctx, query, map[string]interface{}{
+		"state":             string(snap.State),
+		"seller_respond_by": snap.SellerRespondBy,
+		"review_ends_at":    snap.ReviewEndsAt,
+		"id":                snap.ID,
+	})
+
+	if err != nil {
+		return fmt.Errorf("updating order %s: %w", snap.ID, err)
+	}
 
 	// 3. Check RowsAffected == 0 → the row vanished or never existed.
-	//    Return domain.ErrOrderNotFound.
+	rows, err := res.RowsAffected()
+	// driver error
+	if err != nil {
+		return fmt.Errorf("checking affected rows for order %s: %w", snap.ID, err)
+	}
+
+	if rows == 0 {
+		return domain.ErrOrderNotFound
+	}
 
 	// TODO(concurrency): optimistic locking goes here eventually —
 	// add `version` column to WHERE, bump on UPDATE, treat 0 rows as conflict
 	// (translate to domain.ErrConcurrentModification or similar).
+	return nil
 }
 
 // Insert persists a newly-created aggregate. Separate from Save because the
@@ -81,6 +139,6 @@ func (r *OrderRepository) Insert(ctx context.Context, order *domain.Order) error
 	// 2. INSERT INTO orders (...) VALUES (...) — all 10 fields.
 	//    No RETURNING clause needed: id and createdAt are domain-owned
 	//    (set in NewOrder), so we already have them.
-
 	// 3. Return any error wrapped with context.
+	return nil
 }
