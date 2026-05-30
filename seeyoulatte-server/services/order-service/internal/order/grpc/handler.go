@@ -2,12 +2,16 @@ package grpc
 
 import (
 	"context"
+	"errors"
+	"log/slog"
+	"time"
 
 	pb "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/order"
 	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/domain"
 	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/usecase"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/internal/status"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -25,29 +29,35 @@ func NewHandler(transitionUC *usecase.TransitionOrderUC) *Handler {
 }
 
 func (h *Handler) TransitionState(ctx context.Context, req *pb.TransitionStateRequest) (*pb.Order, error) {
-	// 1. Parse + validate request shape (uuid, target state)
-	//    Bad input → codes.InvalidArgument, return early.
-	//    NOTE: state validation is a design call — see comment below.
+	// parse and validate order id as UUID
+	orderID, err := uuid.Parse(req.OrderId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid order_id: %v", err)
+	}
 
 	// parse and validate transition
 	if !domain.OrderState(req.TargetState).IsValid() {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid target_state: %q", req.TargetState)
-
 	}
 
-	// 2. Call the usecase. Pass time.Now() as the injected clock.
-	//    order, err := h.transitionUC.Handle(ctx, orderID, target, req.Actor, time.Now())
+	// validate actor presence
+	if req.Actor == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "actor is required")
+	}
 
-	// 3. Map errors → gRPC status codes via errors.Is on the domain sentinels.
-	//    Use mapError(err) — the helper below — for clean separation.
+	// call the usecase for business logic
+	order, err := h.transitionUC.Handle(ctx, orderID, domain.OrderState(req.TargetState), req.Actor, time.Now())
 
-	// 4. Map the returned *domain.Order → *pb.Order via orderToProto(snap).
-	//    The order's Snapshot() is the read-out door.
+	if err != nil {
+		// map errors to grpc errors
+		return nil, mapError(ctx, err)
+	}
 
+	// map and return proto from snapshot
+	return orderToProto(order.Snapshot()), nil
 }
 
 // orderToProto translates a domain order's snapshot to the proto response.
-// Pure, mechanical mapping.
 func orderToProto(snap domain.OrderSnapshot) *pb.Order {
 	out := &pb.Order{
 		Id:        snap.ID.String(),
@@ -69,18 +79,36 @@ func orderToProto(snap domain.OrderSnapshot) *pb.Order {
 }
 
 // mapError translates domain/usecase errors into gRPC status codes.
-// One sentinel per domain error variant — no string matching.
-func mapError(err error) error {
+func mapError(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
 	}
-	switch {
-	// TODO(you): one case per domain sentinel
-	//   - domain.ErrOrderNotFound          → codes.NotFound
-	//   - domain.ErrTransitionNotAllowed   → codes.FailedPrecondition
-	//   - domain.ErrInvalidQuantity / ErrInvalidAmount / ErrBuyerIsSeller / ErrInvalidID / ErrInvalidState
-	//                                      → codes.InvalidArgument
-	//   - default                          → codes.Internal
+
+	// expected client outcome, no log
+	if errors.Is(err, domain.ErrOrderNotFound) {
+		return status.Error(codes.NotFound, err.Error())
 	}
-	return nil // placeholder; replace with the switch above
+
+	// expected business outcome, no log
+	if errors.Is(err, domain.ErrTransitionNotAllowed) {
+		return status.Error(codes.FailedPrecondition, err.Error())
+	}
+
+	// expected failed validation, expected client error, no log
+	if errors.Is(err, domain.ErrInvalidAmount) || errors.Is(err, domain.ErrBuyerIsSeller) || errors.Is(err, domain.ErrInvalidQuantity) {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	// unexpected state for domain when attempting to reconstitute
+	if errors.Is(err, domain.ErrInvalidID) || errors.Is(err, domain.ErrInvalidState) {
+		slog.ErrorContext(ctx, "data integrity error when reconstituting order",
+			"error", err.Error(),
+		)
+		return status.Error(codes.Internal, "internal data error")
+	}
+
+	slog.ErrorContext(ctx, "unexpected error in TransitionState",
+		"err", err.Error(),
+	)
+	return status.Error(codes.Internal, "internal error")
 }
