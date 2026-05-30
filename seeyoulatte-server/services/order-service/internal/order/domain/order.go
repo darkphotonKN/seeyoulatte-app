@@ -52,7 +52,6 @@ type Order struct {
 }
 
 func NewOrder(listingID, buyerID, sellerID uuid.UUID, quantity int, amount float64) (*Order, error) {
-
 	// guard for invariant violation
 	if quantity <= 0 {
 		return nil, ErrInvalidQuantity
@@ -123,14 +122,17 @@ func Reconstitute(p ReconstituteParams) (*Order, error) {
 // DDD verbs
 
 // attempt a payment
-// NOTE: DISCUSS BUG WITH KIKI & NICK
 func (o *Order) Pay(now time.Time) error {
+	// validate and mutate status with FSM
+	if err := o.transitionTo(StatePaid); err != nil {
+		return err
+	}
+
 	// set deadline for seller
 	deadline := now.Add(time.Hour * 24)
 	o.sellerRespondBy = &deadline
 
-	// validate and mutate struct
-	return o.transitionTo(StatePaid)
+	return nil
 }
 
 // seller accepts a paid order and commits to fulfilling it

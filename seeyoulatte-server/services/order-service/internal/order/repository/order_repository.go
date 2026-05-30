@@ -28,7 +28,7 @@ type orderRow struct {
 	CreatedAt       time.Time  `db:"created_at"`
 }
 
-// OrderRepository implements domain.OrderRepository.
+// OrderRepository implements domain.OrderRepository
 // Interface = port (domain package). This struct = adapter.
 type OrderRepository struct {
 	db *sqlx.DB
@@ -134,11 +134,36 @@ func (r *OrderRepository) Save(ctx context.Context, order *domain.Order) error {
 // shapes differ: Insert writes ALL fields including the immutable ones;
 // Save updates only the mutable ones. Lets each method be honest about its job.
 func (r *OrderRepository) Insert(ctx context.Context, order *domain.Order) error {
-	// 1. snap := order.Snapshot()
+	snapshot := order.Snapshot()
 
-	// 2. INSERT INTO orders (...) VALUES (...) — all 10 fields.
 	//    No RETURNING clause needed: id and createdAt are domain-owned
 	//    (set in NewOrder), so we already have them.
-	// 3. Return any error wrapped with context.
+	query := `
+	INSERT INTO orders (
+		id, listing_id, buyer_id, seller_id, quantity, amount,
+		state, seller_respond_by, review_ends_at, created_at
+	)
+	VALUES (
+		:id, :listing_id, :buyer_id, :seller_id, :quantity, :amount,
+		:state, :seller_respond_by, :review_ends_at, :created_at
+	)
+	`
+	_, err := r.db.NamedExecContext(ctx, query, map[string]interface{}{
+		"id":                snapshot.ID,
+		"listing_id":        snapshot.ListingID,
+		"buyer_id":          snapshot.BuyerID,
+		"seller_id":         snapshot.SellerID,
+		"quantity":          snapshot.Quantity,
+		"amount":            snapshot.Amount,
+		"state":             string(snapshot.State),
+		"seller_respond_by": snapshot.SellerRespondBy,
+		"review_ends_at":    snapshot.ReviewEndsAt,
+		"created_at":        snapshot.CreatedAt,
+	})
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

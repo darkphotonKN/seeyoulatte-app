@@ -16,6 +16,7 @@ type TransitionOrderUC struct {
 	publisher EventPublisher // narrow ISP interface, only publishes state changed
 }
 
+// DIP / ISP interface that matches the facade that ledger domain provides
 type LedgerService interface {
 	CreateEscrowEntry(ctx context.Context, orderID uuid.UUID, amount float64, actorID uuid.UUID) error
 	CreatePayoutEntry(ctx context.Context, orderID uuid.UUID, amount float64) error
