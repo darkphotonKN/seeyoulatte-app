@@ -24,6 +24,7 @@ func (o *Order) transitionTo(to OrderState) error {
 	if !ok {
 		return ErrTransitionNotAllowed
 	}
+
 	if !vt[to] {
 		return ErrTransitionNotAllowed
 	}
