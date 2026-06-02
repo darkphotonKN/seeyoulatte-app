@@ -8,6 +8,7 @@ import (
 
 	pb "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/order"
 	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/domain"
+	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/query"
 	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/usecase"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -22,10 +23,57 @@ type Handler struct {
 	pb.UnimplementedOrderServiceServer
 	transitionUC *usecase.TransitionOrderUC
 	// other usecases will land here as you add CreateOrderUC etc.
+
+	// read path
+	// TODO: update to ISP / DIP interface
+	getOrderQuery *query.GetOrderQuery
 }
 
-func NewHandler(transitionUC *usecase.TransitionOrderUC) *Handler {
-	return &Handler{transitionUC: transitionUC}
+func NewHandler(transitionUC *usecase.TransitionOrderUC, getOrderQuery *query.GetOrderQuery) *Handler {
+	return &Handler{transitionUC: transitionUC, getOrderQuery: getOrderQuery}
+}
+
+func (h *Handler) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Order, error) {
+	// parse and validate
+	id, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid order_id: %v", err)
+	}
+
+	// call query, read path only
+	order, err := h.getOrderQuery.Execute(ctx, id)
+
+	if err != nil {
+		if errors.Is(err, domain.ErrOrderNotFound) {
+			return nil, status.Errorf(codes.NotFound, err.Error())
+		}
+		// return generic error, hiding db details
+		// at boundary, so log:
+		slog.ErrorContext(ctx, "unexpected transient error", "error", err)
+		return nil, status.Errorf(codes.Internal, "internal data error")
+	}
+
+	// map from dto to pb
+
+	orderProto := &pb.Order{
+		Id:        order.ID.String(),
+		ListingId: order.ListingID.String(),
+		BuyerId:   order.BuyerID.String(),
+		SellerId:  order.SellerID.String(),
+		Quantity:  int32(order.Quantity),
+		State:     order.State,
+		Amount:    order.Amount,
+		CreatedAt: timestamppb.New(order.CreatedAt),
+	}
+
+	if order.SellerRespondBy != nil {
+		orderProto.SellerRespondBy = timestamppb.New(*order.SellerRespondBy)
+	}
+	if order.ReviewEndsAt != nil {
+		orderProto.ReviewEndsAt = timestamppb.New(*order.ReviewEndsAt)
+	}
+
+	return orderProto, nil
 }
 
 func (h *Handler) TransitionState(ctx context.Context, req *pb.TransitionStateRequest) (*pb.Order, error) {

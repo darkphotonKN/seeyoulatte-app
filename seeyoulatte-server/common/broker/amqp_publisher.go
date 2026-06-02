@@ -18,7 +18,6 @@ func NewAmqpPublisher(ch *amqp.Channel) *AmqpPublisher {
 }
 
 func (p *AmqpPublisher) PublishWithContext(_ context.Context, exchange, key string, msg Message) error {
-
 	amqpMessageParam := amqp.Publishing{
 		ContentType:   msg.ContentType,
 		Body:          msg.Body,
@@ -29,3 +28,4 @@ func (p *AmqpPublisher) PublishWithContext(_ context.Context, exchange, key stri
 
 	return p.ch.Publish(exchange, key, false, false, amqpMessageParam)
 }
+

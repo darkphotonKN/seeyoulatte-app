@@ -78,7 +78,6 @@ func (uc *TransitionOrderUC) Handle(ctx context.Context, orderID uuid.UUID, targ
 	// 6. PUBLISH state-changed. Convert domain states → string at the call site
 	//    (publisher speaks wire/string, not domain). Log-and-continue: a publish
 	//    failure must NOT fail the transition — the writes already committed.
-
 	if err := uc.publisher.PublishOrderStateChanged(ctx, order.ID(), string(fromState), string(target), actor); err != nil {
 		slog.Error("publish order state change failed", "order_id", order.ID(), "error", err)
 	}

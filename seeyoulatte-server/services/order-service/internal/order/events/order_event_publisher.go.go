@@ -2,59 +2,29 @@ package events
 
 import (
 	"context"
-	"errors"
-	"time"
+	"fmt"
 
 	eventspb "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/events"
+	commonbroker "github.com/darkphotonKN/seeyoulatte-app/common/broker"
 	commonevents "github.com/darkphotonKN/seeyoulatte-app/common/constants"
-	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/domain"
 	"github.com/google/uuid"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	ErrProtoMarshal = errors.New("error marshalling into protobuf")
-)
-
 type OrderEventPublisher struct {
-	publisher EventPublisher
+	broker commonbroker.Publisher
 }
 
-// abstract this to a common method without leaky abstractions
-type EventPublisher interface {
-	Publish(exchange, key string, mandatory, immediate bool, msg EventMsg) error
-}
-type EventMsg struct {
-	ContentType string
-	Timestamp   time.Time
-	Body        []byte
+func NewOrderEventPublisher(broker commonbroker.Publisher) *OrderEventPublisher {
+	return &OrderEventPublisher{
+		broker: broker,
+	}
 }
 
-// func Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
-type AmqpAdator struct {
-	amqpCh *amqp.Channel
-}
-
-func NewAmqpAdaptor(amqpCh *amqp.Channel) EventPublisher {
-	return &AmqpAdator{amqpCh: amqpCh}
-}
-
-func (a *AmqpAdator) Publish(exchange, key string, mandatory, immediate bool, msg EventMsg) error {
-	// publish with original method
-
-	// convert our event msg to amqp specific
-	return a.amqpCh.Publish(exchange, key, mandatory, immediate, amqp.Publishing{
-		ContentType: msg.ContentType,
-		Timestamp:   msg.Timestamp,
-		Body:        msg.Body,
-	})
-}
-
-func (o *OrderEventPublisher) Publish(ctx context.Context, id uuid.UUID, from, to domain.OrderState, actor string) error {
+func (o *OrderEventPublisher) PublishOrderStateChanged(ctx context.Context, orderID uuid.UUID, from, to, actor string) error {
 	evtPb := &eventspb.OrderStateChangedEvent{
-		Id:        id.String(),
+		Id:        orderID.String(),
 		FromState: string(from),
 		ToState:   string(to),
 		Actor:     actor,
@@ -64,25 +34,41 @@ func (o *OrderEventPublisher) Publish(ctx context.Context, id uuid.UUID, from, t
 	evtPbMarshalled, err := proto.Marshal(evtPb)
 
 	if err != nil {
-		return ErrProtoMarshal
+		return fmt.Errorf("error marshalling into proto error for order %s: %w", orderID, err)
 	}
 
-	evtMsg := EventMsg{
-		ContentType: "protobuf",
-		Timestamp:   evtPb.ChangedAt.AsTime(),
-		Body:        evtPbMarshalled,
+	evtMsg := commonbroker.Message{
+		ContentType:  "application/protobuf",
+		Body:         evtPbMarshalled,
+		DeliveryMode: commonbroker.Persistent,
 	}
 
 	routingKey := o.stateToRoutingKey(to)
 
-	return o.publisher.Publish(commonevents.OrderEventsExchange, routingKey, true, true, evtMsg)
+	if err := o.broker.PublishWithContext(ctx, commonevents.OrderEventsExchange, routingKey, evtMsg); err != nil {
+		return fmt.Errorf("error publishing order state transition order id %s : %w", orderID, err)
+	}
+
+	return nil
 }
 
 // Maps the target state string to the corresponding routing key constant.
-func (o *OrderEventPublisher) stateToRoutingKey(state domain.OrderState) string {
+func (o *OrderEventPublisher) stateToRoutingKey(state string) string {
 	switch state {
-	case domain.StatePaid:
+	case "paid":
 		return commonevents.OrderPaid
+	case "accepted":
+		return commonevents.OrderAccepted
+	case "cancelled":
+		return commonevents.OrderCancelled
+	case "fulfilled":
+		return commonevents.OrderFulfilled
+	case "completed":
+		return commonevents.OrderCompleted
+	case "disputed":
+		return commonevents.OrderDisputed
+	case "refunded":
+		return commonevents.OrderRefunded
 	default:
 		return "order." + string(state)
 	}

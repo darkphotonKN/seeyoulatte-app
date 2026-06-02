@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/domain"order repositor order
+	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/domain"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
