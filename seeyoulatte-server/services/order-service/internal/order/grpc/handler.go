@@ -25,13 +25,17 @@ type Handler struct {
 	// other usecases will land here as you add CreateOrderUC etc.
 
 	// read path
-	// TODO: update to ISP / DIP interface
+	// TODO: update to ISP / DIP interface after thinking about trade offs
 	getOrderQuery *query.GetOrderQuery
 }
 
 func NewHandler(transitionUC *usecase.TransitionOrderUC, getOrderQuery *query.GetOrderQuery) *Handler {
 	return &Handler{transitionUC: transitionUC, getOrderQuery: getOrderQuery}
 }
+
+// ===============
+// READ PATHS
+// ===============
 
 func (h *Handler) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Order, error) {
 	// parse and validate
@@ -76,6 +80,41 @@ func (h *Handler) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Or
 	return orderProto, nil
 }
 
+// ===============
+// WRITE PATHS
+// ===============
+
+// birth of the domain
+func (h *Handler) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.Order, error) {
+
+	// validation
+
+	// call usecase
+
+	return nil, nil
+}
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ */
+
+// Transitioins order from one state to another, safely with the FSM from
+// the domain
 func (h *Handler) TransitionState(ctx context.Context, req *pb.TransitionStateRequest) (*pb.Order, error) {
 	// parse and validate order id as UUID
 	orderID, err := uuid.Parse(req.OrderId)
@@ -104,6 +143,10 @@ func (h *Handler) TransitionState(ctx context.Context, req *pb.TransitionStateRe
 	// map and return proto from snapshot
 	return orderToProto(order.Snapshot()), nil
 }
+
+// ===============
+// HELPERS
+// ===============
 
 // orderToProto translates a domain order's snapshot to the proto response.
 func orderToProto(snap domain.OrderSnapshot) *pb.Order {
