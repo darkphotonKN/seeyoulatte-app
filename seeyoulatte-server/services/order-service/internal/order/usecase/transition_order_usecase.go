@@ -23,10 +23,6 @@ type LedgerService interface {
 	CreateRefundEntry(ctx context.Context, orderID uuid.UUID, amount float64, notes string) error
 }
 
-type EventPublisher interface {
-	PublishOrderStateChanged(ctx context.Context, orderID uuid.UUID, from, to, actor string) error
-}
-
 func NewTransitionOrderUC(repo domain.OrderRepository, ledger LedgerService, pub EventPublisher) *TransitionOrderUC {
 	return &TransitionOrderUC{orderRepo: repo, ledger: ledger, publisher: pub}
 }

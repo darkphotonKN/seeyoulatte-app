@@ -130,7 +130,7 @@ func (r *OrderRepository) Save(ctx context.Context, order *domain.Order) error {
 	return nil
 }
 
-// Insert persists a newly-created aggregate. Separate from Save because the
+// Insert persists a newly created aggregate. Separate from Save because the
 // shapes differ: Insert writes ALL fields including the immutable ones;
 // Save updates only the mutable ones. Lets each method be honest about its job.
 func (r *OrderRepository) Insert(ctx context.Context, order *domain.Order) error {
@@ -161,8 +161,9 @@ func (r *OrderRepository) Insert(ctx context.Context, order *domain.Order) error
 		"created_at":        snapshot.CreatedAt,
 	})
 
+	// transient error
 	if err != nil {
-		return err
+		return fmt.Errorf("unexpected error inserting order %s: %w", snapshot.ID, err)
 	}
 
 	return nil

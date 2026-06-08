@@ -7,10 +7,12 @@ Commonly shared error helpers utilities.
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"strings"
 
 	commonconstants "github.com/darkphotonKN/seeyoulatte-app/common/constants"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 /**
@@ -68,13 +70,28 @@ func IsTransientError(err error) bool {
 		return false
 	}
 
-	errStr := err.Error()
+	// context errors
+	contextErrors := errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 
-	if errors.Is(err, sql.ErrConnDone) || errors.Is(err, context.DeadlineExceeded) ||
-		strings.Contains(errStr, "connection refused") ||
-		strings.Contains(errStr, "connection reset") ||
-		strings.Contains(errStr, "timeout") ||
-		strings.Contains(errStr, "too many connections") {
+	// sql and sql driver errors
+	sqlErrors := errors.Is(err, sql.ErrConnDone) || errors.Is(err, driver.ErrBadConn)
+
+	// postgres specific errors
+	var pgErrors *pgconn.PgError
+	isPgTransientErr := false
+
+	// sets error to the matching error if any error inside "err" matches a case
+	hasPgErr := errors.As(err, &pgErrors)
+
+	if hasPgErr {
+		switch pgErrors.Code {
+		// pg transient errors
+		case "40001", "40P01", "57P03", "08000", "08003", "08006", "08001", "08004":
+			isPgTransientErr = true
+		}
+	}
+
+	if contextErrors || sqlErrors || isPgTransientErr {
 		return true
 	}
 

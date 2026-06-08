@@ -7,6 +7,7 @@ import (
 	eventspb "github.com/darkphotonKN/seeyoulatte-app/common/api/proto/events"
 	commonbroker "github.com/darkphotonKN/seeyoulatte-app/common/broker"
 	commonevents "github.com/darkphotonKN/seeyoulatte-app/common/constants"
+	"github.com/darkphotonKN/seeyoulatte-app/services/order-service/internal/order/usecase"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -47,6 +48,34 @@ func (o *OrderEventPublisher) PublishOrderStateChanged(ctx context.Context, orde
 
 	if err := o.broker.PublishWithContext(ctx, commonevents.OrderEventsExchange, routingKey, evtMsg); err != nil {
 		return fmt.Errorf("error publishing order state transition order id %s : %w", orderID, err)
+	}
+
+	return nil
+}
+
+func (o *OrderEventPublisher) PublishOrderCreated(ctx context.Context, params *usecase.PublishOrderCreatedParams) error {
+	evtPb := &eventspb.OrderCreatedEvent{
+		Id:        params.OrderID.String(),
+		BuyerId:   params.BuyerID.String(),
+		SellerId:  params.SellerID.String(),
+		ListingId: params.ListingID.String(),
+		Amount:    params.Amount,
+	}
+
+	evtMarshalled, err := proto.Marshal(evtPb)
+
+	if err != nil {
+		return fmt.Errorf("error marshalling into proto error from order %s : %w", params.OrderID, err)
+	}
+
+	evtMsg := commonbroker.Message{
+		ContentType:  "application/protobuf",
+		Body:         evtMarshalled,
+		DeliveryMode: commonbroker.Persistent,
+	}
+
+	if err := o.broker.PublishWithContext(ctx, commonevents.OrderEventsExchange, commonevents.OrderCreated, evtMsg); err != nil {
+		return fmt.Errorf("Error publishing order created event %s : %w", params.OrderID, err)
 	}
 
 	return nil

@@ -21,12 +21,14 @@ import (
 // errors back to proto + gRPC status codes. NO business logic.
 type Handler struct {
 	pb.UnimplementedOrderServiceServer
-	transitionUC *usecase.TransitionOrderUC
-	// other usecases will land here as you add CreateOrderUC etc.
 
 	// read path
 	// TODO: update to ISP / DIP interface after thinking about trade offs
 	getOrderQuery *query.GetOrderQuery
+
+	// write path
+	createOrderUC *usecase.CreateOrderUC
+	transitionUC  *usecase.TransitionOrderUC
 }
 
 func NewHandler(transitionUC *usecase.TransitionOrderUC, getOrderQuery *query.GetOrderQuery) *Handler {
@@ -90,8 +92,13 @@ func (h *Handler) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (
 	// validation
 
 	// call usecase
+	order, err := h.CreateOrder(ctx, req)
 
-	return nil, nil
+	if err != nil {
+		return nil, mapError(ctx, err)
+	}
+
+	return order, nil
 }
 
 /*
